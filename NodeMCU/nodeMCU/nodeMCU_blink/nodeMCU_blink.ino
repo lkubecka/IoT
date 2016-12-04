@@ -1,8 +1,28 @@
 // Import required libraries
+#include "Arduino.h" 
 #include "ThingSpeak.h"
 #include "ESP8266WiFi.h"
+#include <DHT.h>
+#include "DallasTemperature.h"
+#include <rBase64.h>
+
+// EasyIoT server definitions
+// http://iot-playground.com/blog/2-uncategorised/86-easyiot-cloud-mqtt-api-v1
+#define EIOT_USERNAME    "lkubecka"
+#define EIOT_PASSWORD    "L1borovo"
+#define EIOT_IP_ADDRESS  "176.9.90.169" // cloud.iot-playground.com
+#define EIOT_PORT        1883
+#define EIOT_NODE        "ESP"
+
+#define EIOT_CLOUD_ADDRESS     "cloud.iot-playground.com"
+#define EIOT_CLOUD_PORT        40404
+
+// EasyIoT Cloud definitions - change EIOT_CLOUD_INSTANCE_PARAM_ID
+#define EIOT_CLOUD_INSTANCE_PARAM_ID    "58448d11c943a07ae877855b/JMtfOl6H5cASAmp3"
+
 const int PIN_LED = 2; //On the ESP-12, the onboard LED is connected to pin 2
 const int PIN_SENSOR_DHT = 5;     //GPIO5 = AM2321 signal
+const int PIN_SENSOR_DS18B20 = 4;     //GPIO4 = DS18B20 one-wire signal
 
 unsigned long myChannelNumber = 180204;
 const char * myWriteAPIKey = "TCIDZX6BSW1KD29W";
@@ -10,14 +30,14 @@ const char * myWriteAPIKey = "TCIDZX6BSW1KD29W";
 // WiFi parameters
 const char* ssid = "sde";
 const char* pass = "anonbithdu";
-float outputSignal = 0.0;
+
 
 String webString="";     // String to display
 unsigned long lastMillisSensors = 0;        // will store last temp was read, use "unsigned long" for variables that hold time
 
 const unsigned long UPDATE_TIME_SENSORS = 2500;//ms
 const unsigned long UPDATE_TIME_MG811 = 200;//ms
-const unsigned long UPDATE_TIME_STATUS_LEDS = 250;//ms
+const unsigned long UPDATE_TIME_LED = 250;//ms
 const unsigned long UPDATE_TIME_STATUS_VPINS = 500;//ms
 const unsigned long UPDATE_TIME_VALUE_VPINS = 500;//ms
 
@@ -25,12 +45,13 @@ boolean isFaultDHT = false;
 
 float valueTemperatureDHT = 0.0;
 float valueHumidityDHT = 0.0;
+bool valueDiscrete = 0;
+float valueTemperatureDS18B20 = 0.0;
 
 int status = WL_IDLE_STATUS;
 WiFiClient  client;
 
 
-#include <DHT.h>
 
 // Initialize DHT sensor 
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
@@ -56,60 +77,108 @@ void updateSensorDHT(void) {
   isFaultDHT = (isnan(valueTemperatureDHT)) || (isnan(valueHumidityDHT));
 }
 
- 
+/* 
+ *  DS18B20 temperature sensore
+ */
+OneWire oneWire(PIN_SENSOR_DS18B20);
+DallasTemperature DS18B20(&oneWire);
+
+
+void updateSensorDS18B20(void) {
+  DS18B20.requestTemperatures(); 
+  valueTemperatureDS18B20 = DS18B20.getTempCByIndex(0);
+}
+
+/*
+ * Easy IoT server
+ */
+
+#define USER_PWD_LEN 40
+char unameenc[USER_PWD_LEN];
+
+  
+
+  
+void EasyIoTsetup() {
+  char uname[USER_PWD_LEN];
+  String str = String(EIOT_USERNAME)+":"+String(EIOT_PASSWORD);  
+  str.toCharArray(uname, USER_PWD_LEN); 
+  memset(unameenc,0,sizeof(unameenc));
+  rbase64_encode(unameenc, uname, strlen(uname));
+/*
+  char unameenc[USER_PWD_LEN];
+  char uname[USER_PWD_LEN];
+  String userToken;
+  userToken = String(EIOT_USERNAME)+String(":")+String(EIOT_PASSWORD);  
+  userToken.toCharArray(uname, USER_PWD_LEN); 
+  memset(unameenc,0,sizeof(unameenc));
+  
+  int encodedLength = Base64.encodedLength(sizeof(uname));
+  char encodedString[encodedLength];
+  memset(encodedString,0,sizeof(encodedString));
+  
+  Base64.encode(encodedString, uname, strlen(uname));
+  */
+  
+}
+
 void setup(void)
 { 
-// Start Serial
-Serial.begin(9600);
+  // Start Serial
+  Serial.begin(9600);
+  
+  // Connect to WiFi
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+  delay(500);
+  Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+   
+  // Print the IP address
+  Serial.println(WiFi.localIP());
+   
+  pinMode(PIN_LED, OUTPUT);       // Initialize the BUILTIN_LED pin as an output
+  ThingSpeak.begin(client);
 
-
- 
-// Connect to WiFi
-WiFi.begin(ssid, pass);
-while (WiFi.status() != WL_CONNECTED) {
-delay(500);
-Serial.print(".");
-}
-Serial.println("");
-Serial.println("WiFi connected");
- 
-// Print the IP address
-Serial.println(WiFi.localIP());
- 
-pinMode(PIN_LED, OUTPUT);       // Initialize the BUILTIN_LED pin as an output
-ThingSpeak.begin(client);
+  EasyIoTsetup();
 }
  
 void loop() {
-  Serial.println("LED low");
-  digitalWrite(PIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
-                               // but actually the LED is on; this is because 
-                               // it is acive low on the ESP-01)
   
-  delay(1000);                 // Wait for a second
-  Serial.println("LED high");
-  digitalWrite(PIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
-  delay(2000);                 // Wait for two seconds (to demonstrate the active low LED)
-  ThingSpeak.writeField(myChannelNumber, 1, outputSignal, myWriteAPIKey);
-  
-  char dato = Serial.read();
-  if (dato == 'S'){
-    Serial.write(45);
-    Serial.println("S entered.");
-    outputSignal = 1.0;    
-  }
-  if (dato == 'E'){
-    Serial.write(45);
-    Serial.println("E entered.");
-    outputSignal = 0.0;    
+  readSerialInput();
+
+  if (checkTimedEvent(UPDATE_TIME_LED, &lastMillisSensors)) {
+      toggleLED();
   }
 
   if (checkTimedEvent(UPDATE_TIME_SENSORS, &lastMillisSensors)) {
     updateSensorDHT();
+    updateSensorDS18B20();
     //updateSensorOneWire();
     broadcastSensorData();
   }
   
+}
+
+void readSerialInput() {
+  char inputChar = Serial.read();
+  if (inputChar == 'S'){
+    Serial.write(45);
+    Serial.println("H entered.");
+    valueDiscrete = 1.0;    
+  }
+  if (inputChar == 'L'){
+    Serial.write(45);
+    Serial.println("L entered.");
+    valueDiscrete = 0.0;    
+  }
+}
+
+void toggleLED() {
+  valueDiscrete = !valueDiscrete;
+  digitalWrite(PIN_LED, valueDiscrete);
 }
 
 boolean checkTimedEvent (const unsigned long period, unsigned long * tempTimeValue) {
@@ -120,13 +189,30 @@ boolean checkTimedEvent (const unsigned long period, unsigned long * tempTimeVal
 
 void broadcastSensorData() 
 {
-
+    ThingSpeak.writeField(myChannelNumber, 1, valueDiscrete, myWriteAPIKey);
     ThingSpeak.writeField(myChannelNumber, 2, valueTemperatureDHT, myWriteAPIKey);
     ThingSpeak.writeField(myChannelNumber, 3, valueHumidityDHT, myWriteAPIKey);
+    ThingSpeak.writeField(myChannelNumber, 4, valueTemperatureDS18B20, myWriteAPIKey);
+
+    String url = "";
+  url += "/Api/EasyIoT/Control/Module/Virtual/"+ String(EIOT_NODE) + "/ControlLevel/"+String(temp); // generate EasIoT server node URL
+    Serial.print("POST data to URL: ");
+    Serial.println(url);
+  
+    client.print(String("POST ") + url + " HTTP/1.1\r\n" +
+               "Host: " + String(EIOT_IP_ADDRESS) + "\r\n" + 
+               "Connection: close\r\n" + 
+               "Authorization: Basic " + unameenc + " \r\n" + 
+               "Content-Length: 0\r\n" + 
+               "\r\n");
+               
     Serial.print("Humidity: ");
     Serial.print(valueHumidityDHT);
     Serial.println("%");
-    Serial.print("Temperature: ");
+    Serial.print("Temperature DHT: ");
     Serial.print(valueTemperatureDHT);
+    Serial.println("°C");
+    Serial.print("Temperature DS18B20: ");
+    Serial.print(valueTemperatureDS18B20);
     Serial.println("°C");
 }
