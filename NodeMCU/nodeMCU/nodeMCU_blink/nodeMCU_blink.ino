@@ -18,7 +18,7 @@
 #define EIOT_CLOUD_PORT        40404
 
 // EasyIoT Cloud definitions - change EIOT_CLOUD_INSTANCE_PARAM_ID
-#define EIOT_CLOUD_INSTANCE_PARAM_ID    "58448d11c943a07ae877855b/JMtfOl6H5cASAmp3"
+#define EIOT_CLOUD_INSTANCE_PARAM_ID    "58448d11c943a07ae877855b/xBjMWbeSsRHRkO72"
 
 const int PIN_LED = 2; //On the ESP-12, the onboard LED is connected to pin 2
 const int PIN_SENSOR_DHT = 5;     //GPIO5 = AM2321 signal
@@ -28,14 +28,15 @@ unsigned long myChannelNumber = 180204;
 const char * myWriteAPIKey = "TCIDZX6BSW1KD29W";
  
 // WiFi parameters
-const char* ssid = "sde";
-const char* pass = "anonbithdu";
+const char* AP_SSID = "sde";
+const char* AP_PASSWORD = "anonbithdu";
 
 
 String webString="";     // String to display
 unsigned long lastMillisSensors = 0;        // will store last temp was read, use "unsigned long" for variables that hold time
 
-const unsigned long UPDATE_TIME_SENSORS = 2500;//ms
+const unsigned long UPDATE_TIME_SENSORS = 10000;//ms
+const unsigned long UPDATE_TIME_SERVER = 1000; //ms
 const unsigned long UPDATE_TIME_MG811 = 200;//ms
 const unsigned long UPDATE_TIME_LED = 250;//ms
 const unsigned long UPDATE_TIME_STATUS_VPINS = 500;//ms
@@ -105,66 +106,44 @@ void EasyIoTsetup() {
   str.toCharArray(uname, USER_PWD_LEN); 
   memset(unameenc,0,sizeof(unameenc));
   rbase64_encode(unameenc, uname, strlen(uname));
-/*
-  char unameenc[USER_PWD_LEN];
-  char uname[USER_PWD_LEN];
-  String userToken;
-  userToken = String(EIOT_USERNAME)+String(":")+String(EIOT_PASSWORD);  
-  userToken.toCharArray(uname, USER_PWD_LEN); 
-  memset(unameenc,0,sizeof(unameenc));
-  
-  int encodedLength = Base64.encodedLength(sizeof(uname));
-  char encodedString[encodedLength];
-  memset(encodedString,0,sizeof(encodedString));
-  
-  Base64.encode(encodedString, uname, strlen(uname));
-  */
-  
 }
 
 void setup(void)
 { 
   // Start Serial
   Serial.begin(9600);
-  
-  // Connect to WiFi
-  WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(500);
-  Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-   
-  // Print the IP address
-  Serial.println(WiFi.localIP());
-   
+    
   pinMode(PIN_LED, OUTPUT);       // Initialize the BUILTIN_LED pin as an output
-  ThingSpeak.begin(client);
-
-  EasyIoTsetup();
+  
+  wifiConnect();
+  //ThingSpeak.begin(client);
+  //EasyIoTsetup();
 }
  
 void loop() {
   
   readSerialInput();
 
+  
+
   if (checkTimedEvent(UPDATE_TIME_LED, &lastMillisSensors)) {
-      toggleLED();
+     
   }
 
   if (checkTimedEvent(UPDATE_TIME_SENSORS, &lastMillisSensors)) {
+    toggleLED();
     updateSensorDHT();
     updateSensorDS18B20();
     //updateSensorOneWire();
-    broadcastSensorData();
+    sendSensorData();
+    sendTeperature(valueTemperatureDHT);
   }
-  
+
 }
 
 void readSerialInput() {
   char inputChar = Serial.read();
-  if (inputChar == 'S'){
+  if (inputChar == 'H'){
     Serial.write(45);
     Serial.println("H entered.");
     valueDiscrete = 1.0;    
@@ -187,24 +166,59 @@ boolean checkTimedEvent (const unsigned long period, unsigned long * tempTimeVal
   return (true);
 }
 
-void broadcastSensorData() 
+void wifiConnect()
 {
-    ThingSpeak.writeField(myChannelNumber, 1, valueDiscrete, myWriteAPIKey);
-    ThingSpeak.writeField(myChannelNumber, 2, valueTemperatureDHT, myWriteAPIKey);
-    ThingSpeak.writeField(myChannelNumber, 3, valueHumidityDHT, myWriteAPIKey);
-    ThingSpeak.writeField(myChannelNumber, 4, valueTemperatureDS18B20, myWriteAPIKey);
-
-    String url = "";
-  url += "/Api/EasyIoT/Control/Module/Virtual/"+ String(EIOT_NODE) + "/ControlLevel/"+String(temp); // generate EasIoT server node URL
-    Serial.print("POST data to URL: ");
-    Serial.println(url);
+  Serial.print("Connecting to AP");
+  WiFi.begin(AP_SSID, AP_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
   
-    client.print(String("POST ") + url + " HTTP/1.1\r\n" +
-               "Host: " + String(EIOT_IP_ADDRESS) + "\r\n" + 
+  Serial.println("");
+  Serial.println("WiFi connected");  
+  Serial.println(WiFi.localIP());
+}
+
+void sendTeperature(float temp)
+{  
+//   WiFiClient client;
+//   
+//   while(!client.connect(EIOT_CLOUD_ADDRESS, EIOT_CLOUD_PORT)) {
+//    Serial.println("connection failed");
+//    wifiConnect(); 
+//  }
+
+  String url = "";
+  // URL: /RestApi/SetParameter/[instance id]/[parameter id]/[value]
+  url += "/RestApi/SetParameter/"+ String(EIOT_CLOUD_INSTANCE_PARAM_ID) + "/"+String(temp); // generate EasIoT cloud update parameter URL
+
+  Serial.print("POST data to URL: ");
+  Serial.println(url);
+  
+  WiFi.print(String("POST ") + url + " HTTP/1.1\r\n" +
+               "Host: " + String(EIOT_CLOUD_ADDRESS) + "\r\n" + 
                "Connection: close\r\n" + 
-               "Authorization: Basic " + unameenc + " \r\n" + 
                "Content-Length: 0\r\n" + 
                "\r\n");
+
+//  delay(100);
+//  while(client.available()) {
+//    String line = client.readStringUntil('\r');
+//    Serial.print(line);
+//  }
+  
+  Serial.println();
+  Serial.println("Connection closed");
+}
+
+void sendSensorData() 
+{
+    
+//    ThingSpeak.writeField(myChannelNumber, 1, valueDiscrete, myWriteAPIKey);
+//    ThingSpeak.writeField(myChannelNumber, 2, valueTemperatureDHT, myWriteAPIKey);
+//    ThingSpeak.writeField(myChannelNumber, 3, valueHumidityDHT, myWriteAPIKey);
+//    ThingSpeak.writeField(myChannelNumber, 4, valueTemperatureDS18B20, myWriteAPIKey);        
                
     Serial.print("Humidity: ");
     Serial.print(valueHumidityDHT);
