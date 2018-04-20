@@ -1,0 +1,92 @@
+<html>
+
+<head>
+    <title>auticko</title>
+    <script src="./jquery-3.2.1.min.js"></script>
+
+</head>
+
+<body>
+
+    <script>
+        // consts
+        var IP = "192.168.4.1";
+        var forward = 98;
+        var stop = 0;
+        var backward = -100;
+        var left = 125;
+        var straight = 110;
+        var right = 90;
+
+        var MID_SPEED = 80;
+
+        var LEFT_ARROW = 37;
+        var UP_ARROW = 38;
+        var RIGHT_ARROW = 39;
+        var DOWN_ARROW = 40;
+        var PAGE_UP = 33;
+        var PAGE_DOWN = 34;
+        
+        var angle = straight;
+        var speed = stop;
+        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+
+        $("body").keydown(function(key) {
+            switch(key.which) {
+                case PAGE_DOWN: {
+                    	speed = MID_SPEED;
+                        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    }
+                    break;
+                case PAGE_UP: {
+                    	speed = stop;
+                        angle = straight;
+                        $.get("http://" + IP + "/stop");
+                    }
+                    break;    
+                case RIGHT_ARROW:
+                    if(angle > right) {
+                        angle = right;
+                        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    }
+                    break;
+                case LEFT_ARROW: 
+                    if(angle < left) {
+                        angle = left;
+                        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    }
+                    break;
+                case UP_ARROW:
+                    if (speed < forward) 
+                    {
+                        speed = forward;
+                        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    }
+                    break;
+                case DOWN_ARROW:
+                    if(speed > backward) {
+                        speed = backward;
+                        $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    }
+                    break;
+            }
+            
+        });
+        $("body").keyup(function (key) {
+            console.log(key.which)
+            switch (key.which) {
+                case LEFT_ARROW:
+                case RIGHT_ARROW:
+                    angle = straight;
+                    $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    break;
+                case UP_ARROW:
+                case DOWN_ARROW:
+                    speed = stop;
+                    $.get("http://" + IP + "/move?speed=" + speed + "&angle=" + angle);
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
