@@ -7,9 +7,9 @@ namespace kalfy
 {
 	namespace record
 	{
-		void saveDate();
+		void saveRevolution(uint64_t numberOfRevolutions, float_t wheelCircumference);
 		void uploadAll(const char * apiUrl, const char * deviceId);
-		void _saveDate(timeval & dateNow);
+		//void _saveDate(timeval & dateNow);
 		void savePressure(int32_t pressurePa);
 	}
 }

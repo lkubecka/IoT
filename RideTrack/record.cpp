@@ -11,15 +11,25 @@ namespace kalfy
 {
 	namespace record
 	{
+		struct buffer_item_t {
+			uint64_t id;
+			double dist;
+			timeval timestamp;
+		};
 		const char* DESTINATION_FILE = "/records.txt";
 
-		void saveDate()
+		void saveRevolution(uint64_t numberOfRevolutions, float_t wheelCircumference)
 		{
-			timeval now = kalfy::time::getCurrentTime();
-			char buffer[32];
-			snprintf(buffer, sizeof(buffer), "d%ld|%ld", now.tv_sec, now.tv_usec);
-			Serial.println(buffer);
-			kalfy::files::appendToFile(DESTINATION_FILE, buffer);
+			buffer_item_t bufferItem;
+			bufferItem.timestamp = kalfy::time::getCurrentTime();
+			bufferItem.dist = numberOfRevolutions * wheelCircumference;
+			bufferItem.id = numberOfRevolutions;
+
+			char bfr[32];
+			snprintf(bfr, sizeof(bfr), "#%llu:d%f,t%ld|%ld", bufferItem.id, bufferItem.dist, bufferItem.timestamp.tv_sec, bufferItem.timestamp.tv_usec);
+			Serial.println(bfr);
+
+			kalfy::files::appendToFile(DESTINATION_FILE, bfr);
 		}
 
 		void savePressure(int32_t pressurePa)
