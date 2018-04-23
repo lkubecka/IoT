@@ -3,3 +3,8 @@
 /RideTrack/Debug
 /RideTrack/examples
 /RideTrack/*.gitignore
+/RideTrackWifi/.vs
+/RideTrackWifi/__vm
+/RideTrackWifi/Debug
+/RideTrackWifi/examples
+/RideTrackWifi/Release
