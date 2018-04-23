@@ -9,9 +9,19 @@
 #include "record.hpp"
 #include "time.hpp"
 
+#include "driver/pcnt.h"
+
+#define _DEBUG
+
 #define uS_TO_MS 1000
 #define HAS_CONTACT 1
 #define NO_CONTACT 0
+volatile byte state = HIGH;
+
+
+const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
+const int RECORD_NTH_ROTATION = 10;
+const long MIN_SAMPLING_TIME_US = 85;
 
 const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
@@ -19,22 +29,40 @@ const gpio_num_t BUTTON_PIN = GPIO_NUM_12;
 const uint32_t TRIGGERED_BY_REED = BIT(13);
 const uint32_t TRIGGERED_BY_BUTTON = BIT(12);
 const uint64_t SLEEP_INTERVAL_uS = 20 * uS_TO_MS;
-const uint64_t ALTITUDE_UPDATE_PERIOD = 3000;
+const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 2000;
 
-static uint64_t frameCount = 0;
-int buffer_tail = 0;
-int buffer_head = 0;
-const byte interruptPin = GPIO_NUM_12;
-volatile int interruptCounter = 0;
+
+const pcnt_unit_t PCNT_UNIT = PCNT_UNIT_0;
+const int PCNT_H_LIM_VAL = 32767;
+const int PCNT_L_LIM_VAL = -1;
+const int PCNT_THRESH1_VAL = 200;
+const int PCNT_THRESH0_VAL = RECORD_NTH_ROTATION;
+const int PCNT_INPUT_SIG_IO = REED_PIN;
+
+
+xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
+
+
+
+/* A structure to pass events from the PCNTinterrupt handler to the main program.*/
+typedef struct {
+	timeval time;
+	uint32_t status; // information on the event type that caused the interrupt
+} pcnt_evt_t;
+
+
+volatile unsigned long isrCounter = 0;
+volatile unsigned long lastIsrAt = 0;
+
 static uint64_t numberOfInterrupts = 0;
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
-const char* ssid = "NAHATCH";
-const char* password = "nahatch123";
+//#define WLAN_SSID       "sde-guest"
+//#define WLAN_PASS       "4Our6uest"
 
-#define WLAN_SSID       "sde-guest"
-#define WLAN_PASS       "4Our6uest"
+#define WLAN_SSID       "NAHATCH"
+#define WLAN_PASS       "nahatch123"
 
 /************************* Adafruit.io Setup *********************************/
 #define AIO_SERVER      "io.adafruit.com"
@@ -54,25 +82,148 @@ const char* apiUrl = "http://odocycle20171225044036.azurewebsites.net/api";
 
 const float WHEEL_CIRCUMFERENCE = 2.2332f;
 
-#define I2C_SDA 18
-#define I2C_SCL 19
+const int I2C_SDA = 19;
+const int I2C_SCL = 18;
 Adafruit_BMP085 bmp;
 
-#define MEASURE_PRESSURE_EVERY_NTH_ROTATION 100
-#define RECORD_NTH_ROTATION 10
+
+
 static RTC_DATA_ATTR int rotationCountPressure = MEASURE_PRESSURE_EVERY_NTH_ROTATION;
 static RTC_DATA_ATTR int rotationCountDate = RECORD_NTH_ROTATION;
-
 static RTC_DATA_ATTR struct timeval sleepEnterTime;
 static RTC_DATA_ATTR int bootCount = 0;
+static RTC_DATA_ATTR timeval lastEventTime = { 0UL, 0UL };
 
 static int32_t presure = 0;
 
+QueueHandle_t  queue = NULL;
+const int QUEUE_SIZE = 100;
 
-void IRAM_ATTR handleInterrupt() {
-	portENTER_CRITICAL_ISR(&mux);
-	++interruptCounter;
-	portEXIT_CRITICAL_ISR(&mux);
+
+/* Pass evet type to the main program using a queue. */
+static void IRAM_ATTR handleReedInterrupt(void *arg)
+{
+	uint32_t intr_status = PCNT.int_st.val;
+	int i;
+	pcnt_evt_t evt;
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+
+	if (intr_status & (BIT(PCNT_UNIT))) {
+		state = !state;
+		digitalWrite(LED_BUILTIN, state);
+
+		evt.time = kalfy::time::getCurrentTime();
+		evt.status = PCNT.status_unit[PCNT_UNIT].val;
+
+		PCNT.int_clr.val = BIT(PCNT_UNIT);
+		xQueueSendFromISR(pcnt_evt_queue, &evt, &xHigherPriorityTaskWoken);
+
+		if (evt.status & PCNT_STATUS_THRES0_M) {
+			pcnt_counter_clear(PCNT_UNIT);
+		}
+
+		if (xHigherPriorityTaskWoken == pdTRUE) {
+			portYIELD_FROM_ISR();
+		}
+	}
+}
+
+
+typedef struct riderMessage_t
+{
+	unsigned long count;
+	timeval time;
+};
+
+
+void IRAM_ATTR handleButtonInterrupt() {
+	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+	timeval now = kalfy::time::getCurrentTime();
+	long delta = kalfy::time::durationBeforeNow(&lastEventTime, &now);
+	
+	if (delta > MIN_SAMPLING_TIME_US) {                 // Debounce pulses shorter than MIN_SAMPLING_TIME_US
+		if (1) { //++isrCounter % RECORD_NTH_ROTATION) {       // Record every RECORD_NTH_ROTATION
+			state = !state;
+			digitalWrite(LED_BUILTIN, state);
+			riderMessage_t msg;
+			msg.count = isrCounter;
+			msg.time = now;
+			xQueueSendToBackFromISR(queue, (void *)&msg, &xHigherPriorityTaskWoken);
+		}
+	}
+	lastEventTime = now;
+	//Serial.println(delta);
+	
+
+	//Now the buffer is empty we can switch context if necessary.
+	if (xHigherPriorityTaskWoken)
+	{
+		portYIELD_FROM_ISR();
+	}
+}
+
+/* time to block the task until data is available */
+const TickType_t xTicksToWait = pdMS_TO_TICKS(100);
+
+void saveRotationTask(void *pvParameter)
+{
+	pcnt_evt_t msg;
+	BaseType_t xStatus;
+
+	if (queue == NULL) {
+		printf("Queue is not ready");
+		return;
+	}
+	while (1) {
+		xStatus = xQueueReceive(pcnt_evt_queue, &msg, (TickType_t)(1000 / portTICK_PERIOD_MS));
+		if (xStatus == pdPASS) {
+			Serial.print("(");
+			Serial.print((time_t)msg.time.tv_sec);
+			Serial.print(",");
+			Serial.print((suseconds_t)msg.time.tv_usec);
+			Serial.println(")");
+			kalfy::record::saveRevolution(msg.time);	
+		}
+
+		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
+	}
+}
+
+
+void consumerTask(void *pvParameter)
+{
+	riderMessage_t msg;
+	BaseType_t xStatus;
+
+	if (queue == NULL) {
+		printf("Queue is not ready");
+		return;
+	}
+	while (1) {
+		xStatus = xQueueReceive(queue, &msg, (TickType_t)(1000 / portTICK_PERIOD_MS));
+		if (xStatus == pdPASS) {
+			Serial.println("--- Printing file.");
+			bool deleteFile = false;
+
+
+			// Disable interrupts as displaying file takes some time
+			pcnt_intr_disable(PCNT_UNIT); 
+			gpio_intr_disable(BUTTON_PIN);
+			kalfy::record::printAll();
+		
+			if (gpio_get_level(BUTTON_PIN) == LOW) {
+				Serial.println("Deleting file");
+				kalfy::record::clear();
+			}
+
+			gpio_intr_enable(BUTTON_PIN);
+			pcnt_intr_enable(PCNT_UNIT);
+
+
+		}
+		
+		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
+	}
 }
 
 unsigned long altitudeUpdateStart = 0;
@@ -101,6 +252,74 @@ const char* ca_cert = \
 "MrY=\n" \
 "-----END CERTIFICATE-----\n";
 
+
+void setup()
+{
+	Serial.begin(115200);
+
+	queue = xQueueCreate(QUEUE_SIZE, sizeof(riderMessage_t));
+
+	if (queue == NULL) {
+		Serial.println("Error creating the queue");
+	}
+
+	pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+	attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonInterrupt, RISING);
+
+	//pinMode(REED_PIN, INPUT_PULLDOWN);
+	//attachInterrupt(digitalPinToInterrupt(REED_PIN), handleReedInterrupt, RISING);
+
+	//connectWiFi();
+
+	pinMode(LED_BUILTIN, OUTPUT);
+	digitalWrite(LED_BUILTIN, state);
+	
+	pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
+	if (pcnt_evt_queue == NULL) {
+		Serial.println("Error creating the queue");
+	}
+
+	initPcnt();
+	pinMode(REED_PIN, INPUT_PULLDOWN);
+
+	xTaskCreate(
+		consumerTask,     /* Task function. */
+		"Consumer",       /* String with name of task. */
+		2048,            /* Stack size in words. */
+		NULL,             /* Parameter passed as input of the task */
+		9,               /* Priority of the task. */
+		NULL);            /* Task handle. */
+
+	xTaskCreate(
+		saveRotationTask,     /* Task function. */
+		"ReedConsumer",       /* String with name of task. */
+		2048,            /* Stack size in words. */
+		NULL,             /* Parameter passed as input of the task */
+		10,               /* Priority of the task. */
+		NULL);            /* Task handle. */
+	
+
+	++bootCount;
+	Serial.println("Boot number: " + String(bootCount));
+}
+
+
+
+void get_altitude() {
+	Wire.begin(I2C_SDA, I2C_SCL);
+	if (bmp.begin(BMP085_STANDARD))
+	{
+		presure = bmp.readPressure();
+		//kalfy::record::savePressure(presure);
+		Serial.printf("Temperature: %f C, Pressure: %d Pa, Altitude %d m\n", bmp.readTemperature(), presure, bmp.readAltitude());
+	}
+	else
+	{
+		Serial.println("Could not find BMP180 sensor");
+	}
+}
+
+
 void woken()
 {
 	esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -121,7 +340,7 @@ void woken()
 			digitalWrite(LED_BUILTIN, LOW);
 			delay(1000);
 		}
-		else if ( (triggerSource & TRIGGERED_BY_BUTTON) > 0)
+		else if ((triggerSource & TRIGGERED_BY_BUTTON) > 0)
 		{
 			//sendData();
 			digitalWrite(LED_BUILTIN, LOW);
@@ -146,12 +365,12 @@ void sendData()
 {
 	Serial.println("=== sendData called");
 	//connectToWiFi();
-    //kalfy::record::uploadAll(apiUrl, deviceId);
+	//kalfy::record::uploadAll(apiUrl, deviceId);
 }
 
 void connectWiFi() {
 	// Connect to WiFi access point.
-	Serial.println(); 
+	Serial.println();
 	Serial.println();
 	Serial.print("Connecting to ");
 	Serial.println(WLAN_SSID);
@@ -164,77 +383,10 @@ void connectWiFi() {
 	Serial.println();
 
 	Serial.println("WiFi connected");
-	Serial.println("IP address: "); 
+	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
 }
 
-
-void setup()
-{
-	Serial.begin(115200);
-
-	pinMode(interruptPin, INPUT_PULLUP);
-	attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
-
-	//connectWiFi();
-
-	
-	/* struct timeval now;
-	gettimeofday(&now, NULL);
-	int sleep_time_ms = (now.tv_sec - sleepEnterTime.tv_sec) * 1000 + (now.tv_usec - sleepEnterTime.tv_usec) / 1000;
-
-	//Serial.begin(115200);
-	//Serial.printf("sleep_time_ms %d", sleep_time_ms);
-	*/
-	pinMode(LED_BUILTIN, OUTPUT);
-	digitalWrite(LED_BUILTIN, HIGH);
-
-	++bootCount;
-	Serial.println("Boot number: " + String(bootCount));
-
-	/*
-	
-	//const int wakeup_time_sec = 5;
-	//printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
-	//esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
-	woken();
-
-	rtc_gpio_init(REED_PIN);
-	gpio_pullup_dis(REED_PIN);
-	gpio_pulldown_en(REED_PIN);
-
-	rtc_gpio_init(BUTTON_PIN);
-	gpio_pullup_dis(BUTTON_PIN);
-	gpio_pulldown_en(BUTTON_PIN);
-
-	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-	// dokumentace k funkci:
-	// http://esp-idf.readthedocs.io/en/latest/api-reference/system/sleep_modes.html
-	// https://github.com/espressif/esp-idf/blob/master/components/esp32/include/esp_sleep.h
-	// https://github.com/espressif/esp-idf/blob/master/components/esp32/test/test_sleep.c
-	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
-
-	
-	esp_deep_sleep_start();
-
-	*/
-}
-
-void get_altitude() {
-	Wire.begin(SDA, SCL);
-	//Wire.begin(I2C_SDA, I2C_SCL);
-	if (bmp.begin(BMP085_HIGHRES))
-	{
-		presure = bmp.readPressure();
-		kalfy::record::savePressure(presure);
-		Serial.printf("Temperature: %f C, Pressure: %d Pa, Altitude %d m\n", bmp.readTemperature(), presure, bmp.readAltitude());
-
-	}
-	else
-	{
-		Serial.println("Could not find BMP180 sensor");
-	}
-}
 
 void adafruitSendData(const String & feed, const uint32_t value) {
 
@@ -266,30 +418,67 @@ void adafruitSendData(const String & feed, const uint32_t value) {
 
 void loop()
 {
-	
 
-	if (interruptCounter > 0) {
-
-		portENTER_CRITICAL(&mux);
-		interruptCounter--;
-		portEXIT_CRITICAL(&mux);
-        
-		numberOfInterrupts++;
-
-		Serial.print("Relovolution detected. Total: ");
-		Serial.println((long unsigned int)numberOfInterrupts);
-		kalfy::record::saveRevolution(numberOfInterrupts, WHEEL_CIRCUMFERENCE);
-		//adafruitSendData(String("revolution"), numberOfInterrupts);
-	}
-    
-
-	if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD) {
+	if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD_MS) {
 		altitudeUpdateStart = millis();
 		get_altitude();
 
-
 		//adafruitSendData(String("presure"), presure);
+
+		int16_t pcntCntr = 0;
+		if (pcnt_get_counter_value(PCNT_UNIT, &pcntCntr) == ESP_OK) {
+			Serial.print("Read pcnt unit 0: ");
+			Serial.println(pcntCntr);
+		}
 	}
+
+
 	
-    //delay(200);
+    delay(500);
+}
+
+static void initPcnt(void)
+{
+	pcnt_config_t pcnt_config;
+	pcnt_config.pulse_gpio_num = REED_PIN;
+	pcnt_config.ctrl_gpio_num = PCNT_PIN_NOT_USED;
+	pcnt_config.channel = PCNT_CHANNEL_0;
+	pcnt_config.unit = PCNT_UNIT;
+	// What to do on the positive / negative edge of pulse input?
+	pcnt_config.pos_mode = PCNT_COUNT_INC;      // Count up on the positive edge
+	pcnt_config.neg_mode = PCNT_COUNT_DIS;      // Keep the counter value on the negative edge
+											    // What to do when control input is low or high?
+	pcnt_config.lctrl_mode = PCNT_MODE_KEEP;    // Keep the primary counter mode if high
+	pcnt_config.hctrl_mode = PCNT_MODE_KEEP;    // Keep the primary counter mode if high
+												
+	pcnt_config.counter_h_lim = PCNT_H_LIM_VAL; // Set the maximum limit values to watch
+	pcnt_config.counter_l_lim = PCNT_L_LIM_VAL; // Set the minimum limit values to watch
+
+	/* Initialize PCNT unit */
+	pcnt_unit_config(&pcnt_config);
+
+	/* Configure and enable the input filter */
+	pcnt_set_filter_value(PCNT_UNIT, 1000);
+	pcnt_filter_enable(PCNT_UNIT);
+
+	/* Set threshold 0 and 1 values and enable events to watch */
+	pcnt_set_event_value(PCNT_UNIT, PCNT_EVT_THRES_1, PCNT_THRESH1_VAL);
+	pcnt_event_enable(PCNT_UNIT, PCNT_EVT_THRES_1);
+	pcnt_set_event_value(PCNT_UNIT, PCNT_EVT_THRES_0, PCNT_THRESH0_VAL);
+	pcnt_event_enable(PCNT_UNIT, PCNT_EVT_THRES_0);
+	/* Enable events on zero, maximum and minimum limit values */
+	pcnt_event_enable(PCNT_UNIT, PCNT_EVT_ZERO);
+	pcnt_event_enable(PCNT_UNIT, PCNT_EVT_H_LIM);
+	pcnt_event_enable(PCNT_UNIT, PCNT_EVT_L_LIM);
+
+	/* Initialize PCNT's counter */
+	pcnt_counter_pause(PCNT_UNIT);
+	pcnt_counter_clear(PCNT_UNIT);
+
+	/* Register ISR handler and enable interrupts for PCNT unit */
+	pcnt_isr_register(handleReedInterrupt, NULL, 0, NULL);
+	pcnt_intr_enable(PCNT_UNIT);
+
+	/* Everything is set up, now go to counting */
+	pcnt_counter_resume(PCNT_UNIT);
 }

@@ -12,21 +12,16 @@ namespace kalfy
 	namespace record
 	{
 		struct buffer_item_t {
-			uint64_t id;
-			double dist;
 			timeval timestamp;
 		};
 		const char* DESTINATION_FILE = "/records.txt";
 
-		void saveRevolution(uint64_t numberOfRevolutions, float_t wheelCircumference)
+		void saveRevolution(timeval timestamp)
 		{
-			buffer_item_t bufferItem;
-			bufferItem.timestamp = kalfy::time::getCurrentTime();
-			bufferItem.dist = numberOfRevolutions * wheelCircumference;
-			bufferItem.id = numberOfRevolutions;
-
 			char bfr[32];
-			snprintf(bfr, sizeof(bfr), "#%llu:d%f,t%ld|%ld", bufferItem.id, bufferItem.dist, bufferItem.timestamp.tv_sec, bufferItem.timestamp.tv_usec);
+			//float speed = 2.1/ timestamp.tv_sec
+			//snprintf(bfr, sizeof(bfr), "#%llu:d%f,t%ld|%ld", bufferItem.id, bufferItem.dist, bufferItem.timestamp.tv_sec, bufferItem.timestamp.tv_usec);
+			snprintf(bfr, sizeof(bfr), "t%ld|%ld", timestamp.tv_sec, timestamp.tv_usec);
 			Serial.println(bfr);
 
 			kalfy::files::appendToFile(DESTINATION_FILE, bfr);
@@ -89,5 +84,39 @@ namespace kalfy
 			http.end();
 			Serial.println("== Upload complete");
 		}
+
+
+		void printAll()
+		{
+#ifdef _DEBUG
+			Serial.println("=== printAll called");
+#endif
+
+			File file = kalfy::files::openFileForUpload(DESTINATION_FILE);
+			if (!file || file.size() == 0)
+			{
+				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file
+#ifdef _DEBUG
+				Serial.println("=== Nothing to print");
+#endif
+				return;
+			}
+
+			String indexHTML;
+			unsigned int cnt = 0;
+
+			while (file.available()) {
+				Serial.write(file.read()); 
+				cnt++;
+			}
+			Serial.println(cnt);
+			file.close();
+			
+		}
+		void clear() {
+			kalfy::files::deleteFile(DESTINATION_FILE);
+		}
 	}
+
+
 }

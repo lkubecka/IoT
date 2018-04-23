@@ -55,5 +55,17 @@ namespace kalfy
 			file.close();
 			SPIFFS.end();
 		}
+
+
+		void deleteFile(const char * fileName)
+		{
+#ifdef _DEBUG
+			Serial.println("== Deleting file");
+#endif
+
+			SPIFFS.remove(fileName);
+
+			SPIFFS.end();
+		}
 	}
 }

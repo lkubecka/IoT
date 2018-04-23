@@ -11,6 +11,7 @@ namespace kalfy
 		void uploadSucceeded(File file, const char * fileName);
 		void uploadFailed(File file);
 		void appendToFile(const char * fileName, const char * line);
+		void deleteFile(const char * fileName);
 	}
 }
 
