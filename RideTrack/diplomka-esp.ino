@@ -10,6 +10,7 @@
 #include "time.hpp"
 
 #include "driver/pcnt.h"
+#include "esp_deep_sleep.h"
 
 #define _DEBUG
 
@@ -21,7 +22,8 @@ volatile byte state = HIGH;
 
 const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
 const int RECORD_NTH_ROTATION = 10;
-const long MIN_SAMPLING_TIME_US = 85;
+const uint64_t MIN_SAMPLING_TIME_US = 85UL;
+const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1minute IDLE
 
 const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
@@ -30,6 +32,9 @@ const uint32_t TRIGGERED_BY_REED = BIT(13);
 const uint32_t TRIGGERED_BY_BUTTON = BIT(12);
 const uint64_t SLEEP_INTERVAL_uS = 20 * uS_TO_MS;
 const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 2000;
+
+const uint64_t uS_TO_S_FACTOR = 1000000UL;  /* Conversion factor for micro seconds to seconds */
+const uint64_t TIME_TO_SLEEP = 30UL;        /* Time ESP32 will go to sleep (in seconds) */
 
 
 const pcnt_unit_t PCNT_UNIT = PCNT_UNIT_0;
@@ -93,6 +98,7 @@ static RTC_DATA_ATTR int rotationCountDate = RECORD_NTH_ROTATION;
 static RTC_DATA_ATTR struct timeval sleepEnterTime;
 static RTC_DATA_ATTR int bootCount = 0;
 static RTC_DATA_ATTR timeval lastEventTime = { 0UL, 0UL };
+static RTC_DATA_ATTR timeval lastActivityTime = { 0UL, 0UL };
 
 static int32_t presure = 0;
 
@@ -183,6 +189,7 @@ void saveRotationTask(void *pvParameter)
 			Serial.print((suseconds_t)msg.time.tv_usec);
 			Serial.println(")");
 			kalfy::record::saveRevolution(msg.time);	
+			lastActivityTime = msg.time;
 		}
 
 		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
@@ -209,6 +216,7 @@ void consumerTask(void *pvParameter)
 			// Disable interrupts as displaying file takes some time
 			pcnt_intr_disable(PCNT_UNIT); 
 			gpio_intr_disable(BUTTON_PIN);
+
 			kalfy::record::printAll();
 		
 			if (gpio_get_level(BUTTON_PIN) == LOW) {
@@ -216,14 +224,35 @@ void consumerTask(void *pvParameter)
 				kalfy::record::clear();
 			}
 
+			lastActivityTime = kalfy::time::getCurrentTime();
+
 			gpio_intr_enable(BUTTON_PIN);
 			pcnt_intr_enable(PCNT_UNIT);
-
 
 		}
 		
 		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
 	}
+}
+
+void goToSleep() {
+	rtc_gpio_init(REED_PIN);
+	gpio_pullup_dis(REED_PIN);
+	gpio_pulldown_en(REED_PIN);
+
+	rtc_gpio_init(BUTTON_PIN);
+	gpio_pullup_dis(BUTTON_PIN);
+	gpio_pulldown_en(BUTTON_PIN);
+
+	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
+
+	esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");
+
+	gettimeofday(&sleepEnterTime, NULL);
+
+	esp_deep_sleep_start();
 }
 
 unsigned long altitudeUpdateStart = 0;
@@ -256,7 +285,24 @@ const char* ca_cert = \
 void setup()
 {
 	Serial.begin(115200);
+	delay(1000); //Take some time to open up the Serial Monitor
 
+	Wire.begin(I2C_SDA, I2C_SCL);
+
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	int sleep_time_ms = (now.tv_sec - sleepEnterTime.tv_sec) * 1000 + (now.tv_usec - sleepEnterTime.tv_usec) / 1000;
+	Serial.printf("\n\nSleep time %d sec\n", sleep_time_ms/1000);
+
+	++bootCount;
+	Serial.println("Boot number: " + String(bootCount));
+
+	lastActivityTime = now;
+
+	woken();
+}
+
+void normalModeSetup() {
 	queue = xQueueCreate(QUEUE_SIZE, sizeof(riderMessage_t));
 
 	if (queue == NULL) {
@@ -266,14 +312,9 @@ void setup()
 	pinMode(BUTTON_PIN, INPUT_PULLDOWN);
 	attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonInterrupt, RISING);
 
-	//pinMode(REED_PIN, INPUT_PULLDOWN);
-	//attachInterrupt(digitalPinToInterrupt(REED_PIN), handleReedInterrupt, RISING);
-
-	//connectWiFi();
-
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, state);
-	
+
 	pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
 	if (pcnt_evt_queue == NULL) {
 		Serial.println("Error creating the queue");
@@ -297,20 +338,29 @@ void setup()
 		NULL,             /* Parameter passed as input of the task */
 		10,               /* Priority of the task. */
 		NULL);            /* Task handle. */
-	
-
-	++bootCount;
-	Serial.println("Boot number: " + String(bootCount));
 }
 
+void onDemandUplinkSetup() {
+	Serial.println("=== sendData called");
+	connectWiFi();
+	kalfy::record::uploadAll(apiUrl, deviceId);	
+	goToSleep();
+}
 
+void dailyUplinkSetup() {
+	connectWiFi();
+	presure = 1;
+	get_altitude();
+	adafruitSendData(String("presure"), presure);
+	goToSleep();
+}
 
 void get_altitude() {
 	Wire.begin(I2C_SDA, I2C_SCL);
-	if (bmp.begin(BMP085_STANDARD))
+	if (bmp.begin(BMP085_HIGHRES))
 	{
 		presure = bmp.readPressure();
-		//kalfy::record::savePressure(presure);
+		kalfy::record::savePressure(presure);
 		Serial.printf("Temperature: %f C, Pressure: %d Pa, Altitude %d m\n", bmp.readTemperature(), presure, bmp.readAltitude());
 	}
 	else
@@ -333,40 +383,31 @@ void woken()
 	case 2:
 		// Serial.println("Wakeup caused by external signal using RTC_CNTL");
 		triggerSource = (uint32_t)esp_sleep_get_ext1_wakeup_status();
-		// Serial.printf("Source %x", triggerSource);
+		Serial.printf("Source %x", triggerSource);
 		if ((triggerSource & TRIGGERED_BY_REED) > 0)
 		{
-			//rotationDetected();
-			digitalWrite(LED_BUILTIN, LOW);
-			delay(1000);
+			Serial.printf("Entering Normal mode");
+			normalModeSetup();
 		}
 		else if ((triggerSource & TRIGGERED_BY_BUTTON) > 0)
 		{
-			//sendData();
-			digitalWrite(LED_BUILTIN, LOW);
-			delay(1000);
+			Serial.printf("Entering On Demand Uplink mode");
+			onDemandUplinkSetup();
 		}
-		//waitForLosingContact();
 		break;
 	case 3:
-		// Serial.println("Wakeup caused by timer");
-		digitalWrite(LED_BUILTIN, LOW);
-		delay(1000);
-		//waitForLosingContact();
+		{
+			Serial.printf("Entering On Demand Uplink mode");
+			dailyUplinkSetup();
+		}
 		break;
 	default:
-		//Serial.println("Wakeup was not caused by deep sleep");
+		Serial.println("Wakeup was not caused by deep sleep");
+		normalModeSetup();
 		break;
 	}
 }
 
-
-void sendData()
-{
-	Serial.println("=== sendData called");
-	//connectToWiFi();
-	//kalfy::record::uploadAll(apiUrl, deviceId);
-}
 
 void connectWiFi() {
 	// Connect to WiFi access point.
@@ -432,8 +473,15 @@ void loop()
 		}
 	}
 
+	timeval now = kalfy::time::getCurrentTime();
+	unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
+	Serial.printf("Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+	Serial.printf("Time since last activity: %lu us\n", delta);
 
-	
+	if (delta > MAX_IDLE_TIME_US) {
+		goToSleep();
+	}
+
     delay(500);
 }
 

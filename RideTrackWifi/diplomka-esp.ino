@@ -30,11 +30,11 @@ static uint64_t numberOfInterrupts = 0;
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
-//#define WLAN_SSID       "sde-guest"
-//#define WLAN_PASS       "4Our6uest"
+#define WLAN_SSID       "sde-guest"
+#define WLAN_PASS       "4Our6uest"
 
-#define WLAN_SSID       "NAHATCH"
-#define WLAN_PASS       "nahatch123"
+//#define WLAN_SSID       "NAHATCH"
+//#define WLAN_PASS       "nahatch123"
 
 /************************* Adafruit.io Setup *********************************/
 #define AIO_SERVER      "io.adafruit.com"
@@ -172,6 +172,7 @@ void connectWiFi() {
 void setup()
 {
 	Serial.begin(115200);
+	delay(1000); //Take some time to open up the Serial Monitor
 
 	pinMode(BUTTON_PIN, INPUT_PULLDOWN);
 	attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleInterrupt, FALLING);

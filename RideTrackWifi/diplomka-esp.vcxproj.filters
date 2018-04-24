@@ -33,6 +33,9 @@
     <ClInclude Include="__vm\.RideTrack.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="__vm\.RideTrackWifi.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="files.cpp">
