@@ -35,6 +35,25 @@ namespace kalfy
 			kalfy::files::appendToFile(DESTINATION_FILE, buffer);
 		}
 
+		bool hasData() {
+			return kalfy::files::hasData(DESTINATION_FILE);
+		}
+
+		File openRecordForUpload()
+		{
+			return kalfy::files::openFileForUpload(DESTINATION_FILE);
+		}
+
+		void uploadSucceeded(File file)
+		{
+			kalfy::files::uploadSucceeded(file, DESTINATION_FILE);
+		}
+
+		void uploadFailed(File file)
+		{
+			kalfy::files::uploadFailed(file);
+		}
+
 		void uploadAll(const char* apiUrl, const char* deviceId)
 		{
 #ifdef _DEBUG

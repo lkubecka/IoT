@@ -5,13 +5,14 @@
 
 namespace kalfy
 {
-namespace time
-{
-long durationBeforeNow(struct timeval *past, struct timeval *now);
-struct timeval _sub(struct timeval *a, struct timeval *b);
-long _toMicroSecs(struct timeval *a);
-struct timeval getCurrentTime();
-}
+	namespace time
+	{
+		long durationBeforeNow(struct timeval *past, struct timeval *now);
+		struct timeval _sub(struct timeval *a, struct timeval *b);
+		long _toMicroSecs(struct timeval *a);
+		struct timeval getCurrentTime();
+		void setTime(long secondsSinceEpoch);
+	}
 }
 
 #endif

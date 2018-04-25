@@ -11,6 +11,7 @@
 
 #include "driver/pcnt.h"
 #include "esp_deep_sleep.h"
+#include "ble.hpp"
 
 #define _DEBUG
 
@@ -19,7 +20,7 @@
 #define NO_CONTACT 0
 volatile byte state = HIGH;
 
-
+const int MAX_WIFI_CONNECTION_ATTEMPTS = 5;
 const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
 const int RECORD_NTH_ROTATION = 10;
 const uint64_t MIN_SAMPLING_TIME_US = 85UL;
@@ -34,7 +35,7 @@ const uint64_t SLEEP_INTERVAL_uS = 20 * uS_TO_MS;
 const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 2000;
 
 const uint64_t uS_TO_S_FACTOR = 1000000UL;  /* Conversion factor for micro seconds to seconds */
-const uint64_t TIME_TO_SLEEP = 30UL;        /* Time ESP32 will go to sleep (in seconds) */
+const uint64_t TIME_TO_SLEEP = 300UL;        /* Time ESP32 will go to sleep (in seconds) */
 
 
 const pcnt_unit_t PCNT_UNIT = PCNT_UNIT_0;
@@ -219,10 +220,14 @@ void consumerTask(void *pvParameter)
 
 			kalfy::record::printAll();
 		
-			if (gpio_get_level(BUTTON_PIN) == LOW) {
-				Serial.println("Deleting file");
-				kalfy::record::clear();
-			}
+			//if (gpio_get_level(BUTTON_PIN) == LOW) {
+			//	Serial.println("Deleting file");
+			//	kalfy::record::clear();
+			//}
+		
+			Serial.println("=== sendData called");
+			kalfy::ble::run();
+			Serial.println("sendData done");
 
 			lastActivityTime = kalfy::time::getCurrentTime();
 
@@ -248,7 +253,7 @@ void goToSleep() {
 	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
 
 	esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");
+	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");  // TBD wake up once a day
 
 	gettimeofday(&sleepEnterTime, NULL);
 
@@ -342,8 +347,11 @@ void normalModeSetup() {
 
 void onDemandUplinkSetup() {
 	Serial.println("=== sendData called");
-	connectWiFi();
-	kalfy::record::uploadAll(apiUrl, deviceId);	
+	//connectWiFi();
+	//kalfy::record::uploadAll(apiUrl, deviceId);	
+	Serial.println("=== sendData called");
+	kalfy::ble::run();
+	Serial.println("sendData done");
 	goToSleep();
 }
 
@@ -416,16 +424,29 @@ void connectWiFi() {
 	Serial.print("Connecting to ");
 	Serial.println(WLAN_SSID);
 
-	WiFi.begin(WLAN_SSID, WLAN_PASS);
-	while (WiFi.status() != WL_CONNECTED) {
-		delay(500);
-		Serial.print(".");
+	Serial.println("Connecting Wifi ");
+	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
+		WiFi.begin(WLAN_SSID, WLAN_PASS);
+		if (WiFi.status() == WL_CONNECTED) {
+			Serial.println("");
+			Serial.print("WiFi connected ");
+			Serial.print("IP address: ");
+			Serial.println(WiFi.localIP());
+			break;
+		}
+		else {
+			Serial.print("WiFi connection attempt: ");
+			Serial.println(loops);
+			delay(1000);
+		}
 	}
-	Serial.println();
 
-	Serial.println("WiFi connected");
-	Serial.println("IP address: ");
-	Serial.println(WiFi.localIP());
+	if (WiFi.begin() != WL_CONNECTED) {
+		Serial.println("WiFi connect failed");
+		delay(1000);
+		goToSleep();
+	}
+
 }
 
 

@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <sys/time.h>
 #include "time.hpp"
 
@@ -38,6 +39,16 @@ namespace kalfy
 			struct timeval now;
 			gettimeofday(&now, NULL);
 			return now;
+		}
+
+		void setTime(long secondsSinceEpoch) {
+			struct timeval time;
+			struct timezone timezone;
+			time.tv_sec = secondsSinceEpoch;
+			time.tv_usec = 0;
+			timezone.tz_dsttime = 0;
+			timezone.tz_minuteswest = 0;
+			settimeofday(&time, &timezone);
 		}
 	}
 }

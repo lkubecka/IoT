@@ -56,6 +56,22 @@ namespace kalfy
 			SPIFFS.end();
 		}
 
+		bool hasData(const char * fileName)
+		{
+			SPIFFS.begin(true);
+			File file = SPIFFS.open(fileName, FILE_READ);
+			if (!file)
+			{
+				return false;
+			}
+			bool hasData = file.peek() >= 0;
+
+			file.close();
+			SPIFFS.end();
+
+			return hasData;
+		}
+
 
 		void deleteFile(const char * fileName)
 		{
