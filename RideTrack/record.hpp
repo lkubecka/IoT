@@ -8,9 +8,9 @@ namespace kalfy
 {
 	namespace record
 	{
-		void saveRevolution(timeval timestamp);
+		void saveRevolution(timeval &timestamp);
 		void uploadAll(const char * apiUrl, const char * deviceId);
-		//void _saveDate(timeval & dateNow);
+		void _saveDate(timeval & dateNow);
 		void savePressure(int32_t pressurePa);
 		bool hasData();
 		File openRecordForUpload();

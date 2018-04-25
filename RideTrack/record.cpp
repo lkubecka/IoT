@@ -11,20 +11,15 @@ namespace kalfy
 {
 	namespace record
 	{
-		struct buffer_item_t {
-			timeval timestamp;
-		};
 		const char* DESTINATION_FILE = "/records.txt";
 
-		void saveRevolution(timeval timestamp)
+		void saveRevolution(timeval &now)
 		{
-			char bfr[32];
-			//float speed = 2.1/ timestamp.tv_sec
-			//snprintf(bfr, sizeof(bfr), "#%llu:d%f,t%ld|%ld", bufferItem.id, bufferItem.dist, bufferItem.timestamp.tv_sec, bufferItem.timestamp.tv_usec);
-			snprintf(bfr, sizeof(bfr), "t%ld|%ld", timestamp.tv_sec, timestamp.tv_usec);
-			Serial.println(bfr);
-
-			kalfy::files::appendToFile(DESTINATION_FILE, bfr);
+			//timeval now = kalfy::time::getCurrentTime();
+			char buffer[32];
+			snprintf(buffer, sizeof(buffer), "t%ld|%ld", now.tv_sec, now.tv_usec);
+			Serial.println(buffer);
+			kalfy::files::appendToFile(DESTINATION_FILE, buffer);
 		}
 
 		void savePressure(int32_t pressurePa)
@@ -54,7 +49,7 @@ namespace kalfy
 			kalfy::files::uploadFailed(file);
 		}
 
-		void uploadAll(const char* apiUrl, const char* deviceId)
+		void uploadAll(const char * apiUrl, const char * deviceId)
 		{
 #ifdef _DEBUG
 			Serial.println("=== uploadAll called");
@@ -125,7 +120,7 @@ namespace kalfy
 			unsigned int cnt = 0;
 
 			while (file.available()) {
-				Serial.write(file.read()); 
+				Serial.write(file.read());
 				cnt++;
 			}
 			Serial.println(cnt);
