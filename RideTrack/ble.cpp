@@ -66,6 +66,9 @@ namespace kalfy
 			_transferRequested = false;
 			Serial.println("BLE Starting");
 			BLEDevice::init("RidesTrack device");
+			Serial.print("ESP BLE MAC address: ");
+			BLEAddress deviceAddress = BLEDevice::getAddress();
+			Serial.println(deviceAddress.toString().c_str());
 			BLEDevice::setMTU(MAX_BLE_PACKET_SIZE + 3); // 517 maximum allowed by BLE spec, but ESP32 allows only 514 (3 bytes seem to be reserved): https://github.com/espressif/esp-idf/blob/a4fe12cb6d195a580a57690ceed45e1e06dc58e0/components/bt/bluedroid/stack/gatt/att_protocol.c#L324
 			// Create the BLE Server
 			BLEServer *pServer = BLEDevice::createServer();

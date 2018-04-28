@@ -64,11 +64,11 @@ static uint64_t numberOfInterrupts = 0;
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
-//#define WLAN_SSID       "sde-guest"
-//#define WLAN_PASS       "4Our6uest"
+#define WLAN_SSID       "sde-guest"
+#define WLAN_PASS       "4Our6uest"
 
-#define WLAN_SSID       "NAHATCH"
-#define WLAN_PASS       "nahatch123"
+//#define WLAN_SSID       "NAHATCH"
+//#define WLAN_PASS       "nahatch123"
 
 /************************* Adafruit.io Setup *********************************/
 #define AIO_SERVER      "io.adafruit.com"
@@ -79,6 +79,9 @@ portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 const char* host = "io.adafruit.com";
 const char* io_key = "083e7c316c8b46d2bf0d27f858ee1c54";
 const char* adafruitPath = "/api/groups/default/send.json?x-aio-key=083e7c316c8b46d2bf0d27f858ee1c54&";
+
+
+const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
 
 WiFiClientSecure client;
 
@@ -440,6 +443,21 @@ void connectWiFi() {
 			delay(1000);
 		}
 	}
+	byte mac[6];
+	WiFi.macAddress(mac);
+
+	Serial.print("MAC: ");
+	Serial.print(mac[0], HEX);
+	Serial.print(":");
+	Serial.print(mac[1], HEX);
+	Serial.print(":");
+	Serial.print(mac[2], HEX);
+	Serial.print(":");
+	Serial.print(mac[3], HEX);
+	Serial.print(":");
+	Serial.print(mac[4], HEX);
+	Serial.print(":");
+	Serial.println(mac[5], HEX);
 
 	if (WiFi.begin() != WL_CONNECTED) {
 		Serial.println("WiFi connect failed");
@@ -486,6 +504,8 @@ void loop()
 		get_altitude();
 
 		//adafruitSendData(String("presure"), presure);
+
+		kalfy::ble::run();
 
 		int16_t pcntCntr = 0;
 		if (pcnt_get_counter_value(PCNT_UNIT, &pcntCntr) == ESP_OK) {
