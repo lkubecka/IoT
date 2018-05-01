@@ -4,6 +4,7 @@
 #include <Adafruit_BMP085.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <WiFiUdp.h>
 
 #include <HTTPClient.h>
 #include "record.hpp"
@@ -24,7 +25,7 @@ const int MAX_WIFI_CONNECTION_ATTEMPTS = 5;
 const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
 const int RECORD_NTH_ROTATION = 10;
 const uint64_t MIN_SAMPLING_TIME_US = 85UL;
-const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1minute IDLE
+const uint64_t MAX_IDLE_TIME_US = 600 * 1000 * 1000; // 10 minutes IDLE
 
 const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
@@ -33,9 +34,14 @@ const uint32_t TRIGGERED_BY_REED = BIT(13);
 const uint32_t TRIGGERED_BY_BUTTON = BIT(12);
 const uint64_t SLEEP_INTERVAL_uS = 20 * uS_TO_MS;
 const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 2000;
+const gpio_num_t BATTERY_PIN = GPIO_NUM_36; //VP pin
 
 const uint64_t uS_TO_S_FACTOR = 1000000UL;  /* Conversion factor for micro seconds to seconds */
 const uint64_t TIME_TO_SLEEP = 300UL;        /* Time ESP32 will go to sleep (in seconds) */
+
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
 
 
 const pcnt_unit_t PCNT_UNIT = PCNT_UNIT_0;
@@ -62,13 +68,11 @@ volatile unsigned long lastIsrAt = 0;
 
 static uint64_t numberOfInterrupts = 0;
 
-portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+//#define WLAN_SSID       "sde-guest"
+//#define WLAN_PASS       "4Our6uest"
 
-#define WLAN_SSID       "sde-guest"
-#define WLAN_PASS       "4Our6uest"
-
-//#define WLAN_SSID       "NAHATCH"
-//#define WLAN_PASS       "nahatch123"
+#define WLAN_SSID       "NAHATCH"
+#define WLAN_PASS       "nahatch123"
 
 /************************* Adafruit.io Setup *********************************/
 #define AIO_SERVER      "io.adafruit.com"
@@ -81,13 +85,12 @@ const char* io_key = "083e7c316c8b46d2bf0d27f858ee1c54";
 const char* adafruitPath = "/api/groups/default/send.json?x-aio-key=083e7c316c8b46d2bf0d27f858ee1c54&";
 
 
+const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net/api/v1/Records/";
 const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
+const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJiNDg5ODE1Yy1iOWU2LTRjNzUtOTNmZS0wNDE4MTEwYzk5NDciLCJleHAiOjE1MjczNDEzMjMsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.FjuVmDSP8HGJttu7hC_T6rRoCLUDYeadn_cZdMNITb0";
 
 WiFiClientSecure client;
 
-
-const char* deviceId = "id-zarizeni";
-const char* apiUrl = "http://odocycle20171225044036.azurewebsites.net/api";
 
 const float WHEEL_CIRCUMFERENCE = 2.2332f;
 
@@ -228,14 +231,27 @@ void consumerTask(void *pvParameter)
 			//	kalfy::record::clear();
 			//}
 		
+			//Serial.println("=== sendData called");
+			//kalfy::ble::run();
+			//Serial.println("sendData done");
+      connectWiFi();
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+      printLocalTime();
+      
 			Serial.println("=== sendData called");
-			kalfy::ble::run();
+			
+			kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN);
 			Serial.println("sendData done");
+			WiFi.disconnect(true);
+			WiFi.mode(WIFI_OFF);  
+			//btStop();
 
 			lastActivityTime = kalfy::time::getCurrentTime();
 
 			gpio_intr_enable(BUTTON_PIN);
 			pcnt_intr_enable(PCNT_UNIT);
+
+      goToSleep();
 
 		}
 		
@@ -254,6 +270,9 @@ void goToSleep() {
 
 	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
 	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
+
+  SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_XPD_SDIO_REG_M);
+  SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_SDIO_FORCE_M);
 
 	esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");  // TBD wake up once a day
@@ -334,7 +353,7 @@ void normalModeSetup() {
 	xTaskCreate(
 		consumerTask,     /* Task function. */
 		"Consumer",       /* String with name of task. */
-		2048,            /* Stack size in words. */
+		8128,            /* Stack size in words. */
 		NULL,             /* Parameter passed as input of the task */
 		9,               /* Priority of the task. */
 		NULL);            /* Task handle. */
@@ -350,16 +369,16 @@ void normalModeSetup() {
 
 void onDemandUplinkSetup() {
 	Serial.println("=== sendData called");
-	//connectWiFi();
-	//kalfy::record::uploadAll(apiUrl, deviceId);	
-	Serial.println("=== sendData called");
-	kalfy::ble::run();
+	connectWiFi();
+	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN);
 	Serial.println("sendData done");
 	goToSleep();
 }
 
 void dailyUplinkSetup() {
 	connectWiFi();
+	configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
 	presure = 1;
 	get_altitude();
 	adafruitSendData(String("presure"), presure);
@@ -473,7 +492,7 @@ void adafruitSendData(const String & feed, const uint32_t value) {
 	HTTPClient http;
 
 	http.begin("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value), ca_cert);
-	log_v("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value));
+	//log_v("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value));
 
 	// IO API authentication
 	http.addHeader("X-AIO-Key", io_key);
@@ -489,23 +508,48 @@ void adafruitSendData(const String & feed, const uint32_t value) {
 		// HTTP 200 OK
 		if (httpCode == HTTP_CODE_OK) {
 			String payload = http.getString();
-			log_v(payload);
+			//log_v(payload);
 		}
 
 		http.end();
 	}
 }
 
+float readBatteryVoltage() { 
+	const float ADC_RESOLUTION = 4096.0f;  // 12bit ADC = 2^12
+	const float REFERENCE_VOLTAGE = 3.30f; // nominal EPS voltage
+	const float VOLTAGE_DIVIDER = 127.0f / 100.0f;  // LiPo battery 4.2 V to 3.3, 127kOhm+100kOhm
+	return VOLTAGE_DIVIDER * REFERENCE_VOLTAGE * float(analogRead(BATTERY_PIN)) / ADC_RESOLUTION;  // LiPo battery
+	//Serial.print("Battery Voltage = "); 
+	//Serial.print(VBAT, 2); 
+	//Serial.println(" V");
+
+}
+
+void printLocalTime()
+{
+	struct tm timeinfo;
+	if (!getLocalTime(&timeinfo)) {
+		Serial.println("Failed to obtain time");
+		return;
+	}
+	Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+}
+
+
 void loop()
 {
 
 	if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD_MS) {
 		altitudeUpdateStart = millis();
+
+		printLocalTime();
+
 		get_altitude();
 
 		//adafruitSendData(String("presure"), presure);
 
-		kalfy::ble::run();
+		//kalfy::ble::run();
 
 		int16_t pcntCntr = 0;
 		if (pcnt_get_counter_value(PCNT_UNIT, &pcntCntr) == ESP_OK) {
@@ -514,8 +558,12 @@ void loop()
 		}
 	}
 
+	Serial.printf("Battery voltage: %f V\n", readBatteryVoltage());
+
+
 	timeval now = kalfy::time::getCurrentTime();
 	unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
+	Serial.println();
 	Serial.printf("Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
 	Serial.printf("Time since last activity: %lu us\n", delta);
 
