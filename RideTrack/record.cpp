@@ -49,7 +49,7 @@ namespace kalfy
 			kalfy::files::uploadFailed(file);
 		}
 
-		void uploadAll(const char * apiUrl, const char * deviceId, const char * token)
+		void uploadAll(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert)
 		{
 #ifdef _DEBUG
 			Serial.println("=== uploadAll called");
@@ -73,9 +73,9 @@ namespace kalfy
 			}
 
 			HTTPClient http;
-			http.begin(String(apiUrl) + deviceId);
-			http.addHeader("Authorization", token);
-			http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+			http.begin(String(apiUrl) + deviceId, ca_cert);
+			http.addHeader("Authorization", "Bearer " + String(token));
+			http.addHeader("Content-Type", "application/form-data");
 			int httpResponseCode = http.sendRequest("POST", &file, file.size());
 			if (httpResponseCode == 201)
 			{
@@ -86,14 +86,14 @@ namespace kalfy
 			}
 			else
 			{
-#ifdef _DEBUG
+
 				Serial.println("== Sending to server failed");
 				String response = http.getString();
 				Serial.println("HTTP response code:");
 				Serial.println(httpResponseCode);
 				Serial.println("HTTP response body:");
 				Serial.println(response);
-#endif
+
 				kalfy::files::uploadFailed(file);
 			}
 			http.end();

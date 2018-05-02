@@ -9,7 +9,7 @@ namespace kalfy
 	namespace record
 	{
 		void saveRevolution(timeval &timestamp);
-		void uploadAll(const char * apiUrl, const char * deviceId, const char* token);
+		void uploadAll(const char * apiUrl, const char * deviceId, const char* token, const char * ca_cert);
 		void _saveDate(timeval & dateNow);
 		void savePressure(int32_t pressurePa);
 		bool hasData();

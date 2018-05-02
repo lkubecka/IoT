@@ -6,6 +6,13 @@
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
 
+#include "freertos/FreeRTOS.h"
+#include "esp_wifi.h"
+#include "esp_system.h"
+#include "esp_event.h"
+#include "esp_event_loop.h"
+#include "nvs_flash.h"
+
 #include <HTTPClient.h>
 #include "record.hpp"
 #include "time.hpp"
@@ -14,6 +21,8 @@
 #include "esp_deep_sleep.h"
 #include "ble.hpp"
 
+#include "soc/rtc_cntl_reg.h"
+
 #define _DEBUG
 
 #define uS_TO_MS 1000
@@ -21,7 +30,7 @@
 #define NO_CONTACT 0
 volatile byte state = HIGH;
 
-const int MAX_WIFI_CONNECTION_ATTEMPTS = 5;
+const int MAX_WIFI_CONNECTION_ATTEMPTS = 20;
 const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
 const int RECORD_NTH_ROTATION = 10;
 const uint64_t MIN_SAMPLING_TIME_US = 85UL;
@@ -71,23 +80,50 @@ static uint64_t numberOfInterrupts = 0;
 //#define WLAN_SSID       "sde-guest"
 //#define WLAN_PASS       "4Our6uest"
 
+//#define WLAN_SSID       "Redmi_Libor"
+//#define WLAN_PASS       "nahatch123"
+
 #define WLAN_SSID       "NAHATCH"
 #define WLAN_PASS       "nahatch123"
-
-/************************* Adafruit.io Setup *********************************/
-#define AIO_SERVER      "io.adafruit.com"
-#define AIO_SERVERPORT  8883                   // 8883 for MQTTS
-#define AIO_USERNAME    "lkubecka"
-#define AIO_KEY         "083e7c316c8b46d2bf0d27f858ee1c54"
-
-const char* host = "io.adafruit.com";
-const char* io_key = "083e7c316c8b46d2bf0d27f858ee1c54";
-const char* adafruitPath = "/api/groups/default/send.json?x-aio-key=083e7c316c8b46d2bf0d27f858ee1c54&";
-
 
 const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net/api/v1/Records/";
 const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
 const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJiNDg5ODE1Yy1iOWU2LTRjNzUtOTNmZS0wNDE4MTEwYzk5NDciLCJleHAiOjE1MjczNDEzMjMsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.FjuVmDSP8HGJttu7hC_T6rRoCLUDYeadn_cZdMNITb0";
+
+const char* ODOCYCLE_CERT = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIFtDCCBJygAwIBAgIQC2qzsD6xqfbEYJJqqM3+szANBgkqhkiG9w0BAQsFADBa\n" \
+"MQswCQYDVQQGEwJJRTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJl\n" \
+"clRydXN0MSIwIAYDVQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTE2\n" \
+"MDUyMDEyNTIzOFoXDTI0MDUyMDEyNTIzOFowgYsxCzAJBgNVBAYTAlVTMRMwEQYD\n" \
+"VQQIEwpXYXNoaW5ndG9uMRAwDgYDVQQHEwdSZWRtb25kMR4wHAYDVQQKExVNaWNy\n" \
+"b3NvZnQgQ29ycG9yYXRpb24xFTATBgNVBAsTDE1pY3Jvc29mdCBJVDEeMBwGA1UE\n" \
+"AxMVTWljcm9zb2Z0IElUIFRMUyBDQSA0MIICIjANBgkqhkiG9w0BAQEFAAOCAg8A\n" \
+"MIICCgKCAgEAq+XrXaNrOZ71NIgSux1SJl19CQvGeY6rtw7fGbLd7g/27vRW5Ebi\n" \
+"kg/iZwvjHHGk1EFztMuZFo6/d32wrx5s7XEuwwh3Sl6Sruxa0EiB0MXpoPV6jx6N\n" \
+"XtOtksDaxpE1MSC5OQTNECo8lx0AnpkYGAnPS5fkyfwA8AxanTboskDBSqyEKKo9\n" \
+"Rhgrp4qs9K9LqH5JQsdiIMDmpztd65Afu4rYnJDjOrFswpTOPjJry3GzQS65xeFd\n" \
+"2FkngvvhSA1+6ATx+QEnQfqUWn3FMLu2utcRm4j6AcxuS5K5+Hg8y5xomhZmiNCT\n" \
+"sCqDLpcRHX6BIGHksLmbnG5TlZUixtm9dRC62XWMPD8d0Jb4M0V7ex9UM+VIl6cF\n" \
+"JKLb0dyVriAqfZaJSHuSetAksd5IEfdnPLTf+Fhg9U97NGjm/awmCLbzLEPbT8QW\n" \
+"0JsMcYexB2uG3Y+gsftm2tjL6fLwZeWO2BzqL7otZPFe0BtQsgyFSs87yC4qanWM\n" \
+"wK5c2enAfH182pzjvUqwYAeCK31dyBCvLmKM3Jr94dm5WUiXQhrDUIELH4Mia+Sb\n" \
+"vCkigv2AUVx1Xw41wt1/L3pnnz2OW4y7r530zAz7qB+dIcHz51IaXc4UV21QuEnu\n" \
+"sQsn0uJpJxJuxsAmPuekKxuLUzgG+hqHOuBLf5kWTlk9WWnxcadlZRsCAwEAAaOC\n" \
+"AUIwggE+MB0GA1UdDgQWBBR6e4zBz+egyhzUa/r74TPDDxqinTAfBgNVHSMEGDAW\n" \
+"gBTlnVkwgkdYzKz6CFQ2hns6tQRN8DASBgNVHRMBAf8ECDAGAQH/AgEAMA4GA1Ud\n" \
+"DwEB/wQEAwIBhjAnBgNVHSUEIDAeBggrBgEFBQcDAQYIKwYBBQUHAwIGCCsGAQUF\n" \
+"BwMJMDQGCCsGAQUFBwEBBCgwJjAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGln\n" \
+"aWNlcnQuY29tMDoGA1UdHwQzMDEwL6AtoCuGKWh0dHA6Ly9jcmwzLmRpZ2ljZXJ0\n" \
+"LmNvbS9PbW5pcm9vdDIwMjUuY3JsMD0GA1UdIAQ2MDQwMgYEVR0gADAqMCgGCCsG\n" \
+"AQUFBwIBFhxodHRwczovL3d3dy5kaWdpY2VydC5jb20vQ1BTMA0GCSqGSIb3DQEB\n" \
+"CwUAA4IBAQAR/nIGOiEKN27I9SkiAmKeRQ7t+gaf77+eJDUX/jmIsrsB4Xjf0YuX\n" \
+"/bd38YpyT0k66LMp13SH5LnzF2CHiJJVgr3ZfRNIfwaQOolm552W95XNYA/X4cr2\n" \
+"du76mzVIoZh90pMqT4EWx6iWu9El86ZvUNoAmyqo9DUA4/0sO+3lFZt/Fg/Hjsk2\n" \
+"IJTwHQG5ElBQmYHgKEIsjnj/7cae1eTK6aCqs0hPpF/kixj/EwItkBE2GGYoOiKa\n" \
+"3pXxWe6fbSoXdZNQwwUS1d5ktLa829d2Wf6l1uVW4f5GXDuK+OwO++8SkJHOIBKB\n" \
+"ujxS43/jQPQMQSBmhxjaMmng9tyPKPK9\n" \
+"-----END CERTIFICATE-----\n";
 
 WiFiClientSecure client;
 
@@ -98,14 +134,12 @@ const int I2C_SDA = 19;
 const int I2C_SCL = 18;
 Adafruit_BMP085 bmp;
 
-
-
-static RTC_DATA_ATTR int rotationCountPressure = MEASURE_PRESSURE_EVERY_NTH_ROTATION;
-static RTC_DATA_ATTR int rotationCountDate = RECORD_NTH_ROTATION;
+static int rotationCountPressure = MEASURE_PRESSURE_EVERY_NTH_ROTATION;
+static int rotationCountDate = RECORD_NTH_ROTATION;
 static RTC_DATA_ATTR struct timeval sleepEnterTime;
 static RTC_DATA_ATTR int bootCount = 0;
-static RTC_DATA_ATTR timeval lastEventTime = { 0UL, 0UL };
-static RTC_DATA_ATTR timeval lastActivityTime = { 0UL, 0UL };
+static timeval lastEventTime = { 0UL, 0UL };
+static timeval lastActivityTime = { 0UL, 0UL };
 
 static int32_t presure = 0;
 
@@ -196,6 +230,7 @@ void saveRotationTask(void *pvParameter)
 			Serial.print((suseconds_t)msg.time.tv_usec);
 			Serial.println(")");
 			kalfy::record::saveRevolution(msg.time);	
+			kalfy::record::savePressure(presure);
 			lastActivityTime = msg.time;
 		}
 
@@ -208,13 +243,14 @@ void consumerTask(void *pvParameter)
 {
 	riderMessage_t msg;
 	BaseType_t xStatus;
+	unsigned long altitudeUpdateStart = 0UL;
 
 	if (queue == NULL) {
 		printf("Queue is not ready");
 		return;
 	}
 	while (1) {
-		xStatus = xQueueReceive(queue, &msg, (TickType_t)(1000 / portTICK_PERIOD_MS));
+		xStatus = xQueueReceive(queue, &msg, (TickType_t)(100 / portTICK_PERIOD_MS));
 		if (xStatus == pdPASS) {
 			Serial.println("--- Printing file.");
 			bool deleteFile = false;
@@ -231,31 +267,59 @@ void consumerTask(void *pvParameter)
 			//	kalfy::record::clear();
 			//}
 		
-			//Serial.println("=== sendData called");
-			//kalfy::ble::run();
-			//Serial.println("sendData done");
-      connectWiFi();
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-      printLocalTime();
-      
 			Serial.println("=== sendData called");
-			
-			kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN);
+			kalfy::ble::run();
 			Serial.println("sendData done");
-			WiFi.disconnect(true);
-			WiFi.mode(WIFI_OFF);  
 			//btStop();
 
+			kalfy::record::printAll();
+
+			if (connectWiFi() == WL_CONNECTED) {
+				configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+				printLocalTime();
+
+				Serial.println("=== sendData called");
+				kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+				Serial.println("sendData done");
+
+				WiFi.disconnect(true);
+				WiFi.mode(WIFI_OFF);
+			} 
+
+			//kalfy::record::clear();
+			
 			lastActivityTime = kalfy::time::getCurrentTime();
 
 			gpio_intr_enable(BUTTON_PIN);
 			pcnt_intr_enable(PCNT_UNIT);
 
-      goToSleep();
+			goToSleep();
+		}
 
+		if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD_MS) {
+			altitudeUpdateStart = millis();
+			printLocalTime();
+			Serial.printf("Battery voltage: %f V\n", readBatteryVoltage());
+			get_altitude();
+
+			int16_t pcntCntr = 0;
+			if (pcnt_get_counter_value(PCNT_UNIT, &pcntCntr) == ESP_OK) {
+				Serial.print("Read pcnt unit 0: ");
+				Serial.println(pcntCntr);
+			}
+		}
+
+		
+		timeval now = kalfy::time::getCurrentTime();
+		unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
+		Serial.printf("\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+		Serial.printf("Time since last activity: %lu us\n", delta);
+
+		if (delta > MAX_IDLE_TIME_US) {
+			goToSleep();
 		}
 		
-		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
+		//vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
 	}
 }
 
@@ -284,29 +348,7 @@ void goToSleep() {
 
 unsigned long altitudeUpdateStart = 0;
 
-const char* ca_cert = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIDjjCCAnagAwIBAgIQAzrx5qcRqaC7KGSxHQn65TANBgkqhkiG9w0BAQsFADBh\n" \
-"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n" \
-"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH\n" \
-"MjAeFw0xMzA4MDExMjAwMDBaFw0zODAxMTUxMjAwMDBaMGExCzAJBgNVBAYTAlVT\n" \
-"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n" \
-"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IEcyMIIBIjANBgkqhkiG\n" \
-"9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzfNNNx7a8myaJCtSnX/RrohCgiN9RlUyfuI\n" \
-"2/Ou8jqJkTx65qsGGmvPrC3oXgkkRLpimn7Wo6h+4FR1IAWsULecYxpsMNzaHxmx\n" \
-"1x7e/dfgy5SDN67sH0NO3Xss0r0upS/kqbitOtSZpLYl6ZtrAGCSYP9PIUkY92eQ\n" \
-"q2EGnI/yuum06ZIya7XzV+hdG82MHauVBJVJ8zUtluNJbd134/tJS7SsVQepj5Wz\n" \
-"tCO7TG1F8PapspUwtP1MVYwnSlcUfIKdzXOS0xZKBgyMUNGPHgm+F6HmIcr9g+UQ\n" \
-"vIOlCsRnKPZzFBQ9RnbDhxSJITRNrw9FDKZJobq7nMWxM4MphQIDAQABo0IwQDAP\n" \
-"BgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUTiJUIBiV\n" \
-"5uNu5g/6+rkS7QYXjzkwDQYJKoZIhvcNAQELBQADggEBAGBnKJRvDkhj6zHd6mcY\n" \
-"1Yl9PMWLSn/pvtsrF9+wX3N3KjITOYFnQoQj8kVnNeyIv/iPsGEMNKSuIEyExtv4\n" \
-"NeF22d+mQrvHRAiGfzZ0JFrabA0UWTW98kndth/Jsw1HKj2ZL7tcu7XUIOGZX1NG\n" \
-"Fdtom/DzMNU+MeKNhJ7jitralj41E6Vf8PlwUHBHQRFXGU7Aj64GxJUTFy8bJZ91\n" \
-"8rGOmaFvE7FBcf6IKshPECBV1/MUReXgRPTqh5Uykw7+U0b6LJ3/iyK5S9kJRaTe\n" \
-"pLiaWN0bfVKfjllDiIGknibVb63dDcY3fe0Dkhvld1927jyNxF1WW6LZZm6zNTfl\n" \
-"MrY=\n" \
-"-----END CERTIFICATE-----\n";
+
 
 
 void setup()
@@ -370,7 +412,7 @@ void normalModeSetup() {
 void onDemandUplinkSetup() {
 	Serial.println("=== sendData called");
 	connectWiFi();
-	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN);
+	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
 	Serial.println("sendData done");
 	goToSleep();
 }
@@ -378,10 +420,9 @@ void onDemandUplinkSetup() {
 void dailyUplinkSetup() {
 	connectWiFi();
 	configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-	presure = 1;
-	get_altitude();
-	adafruitSendData(String("presure"), presure);
+	Serial.println("=== sendData called");
+	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+	Serial.println("sendData done");
 	goToSleep();
 }
 
@@ -390,7 +431,6 @@ void get_altitude() {
 	if (bmp.begin(BMP085_HIGHRES))
 	{
 		presure = bmp.readPressure();
-		kalfy::record::savePressure(presure);
 		Serial.printf("Temperature: %f C, Pressure: %d Pa, Altitude %d m\n", bmp.readTemperature(), presure, bmp.readAltitude());
 	}
 	else
@@ -438,16 +478,56 @@ void woken()
 	}
 }
 
+esp_err_t event_handler(void *ctx, system_event_t *event)
+{
+	return ESP_OK;
+}
 
-void connectWiFi() {
+void scanWiFi() {
+	// WiFi.scanNetworks will return the number of networks found
+	int n = WiFi.scanNetworks();
+	Serial.println("scan done");
+	if (n == 0) {
+		Serial.println("no networks found");
+	}
+	else {
+		Serial.print(n);
+		Serial.println(" networks found");
+		for (int i = 0; i < n; ++i) {
+			// Print SSID and RSSI for each network found
+			Serial.print(i + 1);
+			Serial.print(": ");
+			Serial.print(WiFi.SSID(i));
+			Serial.print(" (");
+			Serial.print(WiFi.RSSI(i));
+			Serial.print(")");
+			Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
+			delay(10);
+		}
+	}
+	Serial.println("");
+}
+
+wl_status_t connectWiFi() {
 	// Connect to WiFi access point.
 	Serial.println();
 	Serial.println();
+	WiFi.mode(WIFI_STA);
+	WiFi.disconnect();
+	scanWiFi();
+	
 	Serial.print("Connecting to ");
 	Serial.println(WLAN_SSID);
 
+  //WiFi.mode(WIFI_OFF);
+  delay(1000);
 	Serial.println("Connecting Wifi ");
 	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
+  
+		//WiFi.disconnect(true);                                      // Clear Wifi Credentials
+  //  WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
+   // WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
+    
 		WiFi.begin(WLAN_SSID, WLAN_PASS);
 		if (WiFi.status() == WL_CONNECTED) {
 			Serial.println("");
@@ -478,42 +558,27 @@ void connectWiFi() {
 	Serial.print(":");
 	Serial.println(mac[5], HEX);
 
-	if (WiFi.begin() != WL_CONNECTED) {
-		Serial.println("WiFi connect failed");
-		delay(1000);
-		goToSleep();
-	}
 
+	//nvs_flash_init();
+	//tcpip_adapter_init();
+	//ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
+	//wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	//ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+	//ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+	//ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+	//wifi_config_t sta_config;
+	//sta_config.sta.ssid = "sde-guest"; // WLAN_SSID;
+	//sta_config.sta.password = "4Our6uest"; // WLAN_PASS;
+	//sta_config.sta.bssid_set = false;
+
+	//ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+	//ESP_ERROR_CHECK(esp_wifi_start());
+	//ESP_ERROR_CHECK(esp_wifi_connect());
+
+
+	return WiFi.status();
 }
 
-
-void adafruitSendData(const String & feed, const uint32_t value) {
-
-	HTTPClient http;
-
-	http.begin("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value), ca_cert);
-	//log_v("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value));
-
-	// IO API authentication
-	http.addHeader("X-AIO-Key", io_key);
-
-	// start connection and send HTTP header
-	int httpCode = http.GET();
-	Serial.println(httpCode);
-	// httpCode will be negative on error
-	if (httpCode > 0) {
-		// HTTP header has been send and Server response header has been handled
-		Serial.printf("[HTTP] GET response: %d\n", httpCode);
-
-		// HTTP 200 OK
-		if (httpCode == HTTP_CODE_OK) {
-			String payload = http.getString();
-			//log_v(payload);
-		}
-
-		http.end();
-	}
-}
 
 float readBatteryVoltage() { 
 	const float ADC_RESOLUTION = 4096.0f;  // 12bit ADC = 2^12
@@ -539,39 +604,7 @@ void printLocalTime()
 
 void loop()
 {
-
-	if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD_MS) {
-		altitudeUpdateStart = millis();
-
-		printLocalTime();
-
-		get_altitude();
-
-		//adafruitSendData(String("presure"), presure);
-
-		//kalfy::ble::run();
-
-		int16_t pcntCntr = 0;
-		if (pcnt_get_counter_value(PCNT_UNIT, &pcntCntr) == ESP_OK) {
-			Serial.print("Read pcnt unit 0: ");
-			Serial.println(pcntCntr);
-		}
-	}
-
-	Serial.printf("Battery voltage: %f V\n", readBatteryVoltage());
-
-
-	timeval now = kalfy::time::getCurrentTime();
-	unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
-	Serial.println();
-	Serial.printf("Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
-	Serial.printf("Time since last activity: %lu us\n", delta);
-
-	if (delta > MAX_IDLE_TIME_US) {
-		goToSleep();
-	}
-
-    delay(500);
+	vTaskDelete(NULL);
 }
 
 static void initPcnt(void)

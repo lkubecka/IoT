@@ -244,7 +244,7 @@ void adafruitSendData(const String & feed, const uint32_t value) {
 	HTTPClient http;
 
 	http.begin("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value), ca_cert);
-	log_v("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value));
+	//log_v("https://" + String(host) + String(adafruitPath) + feed + "=" + String(value));
 
 	// IO API authentication
 	http.addHeader("X-AIO-Key", io_key);
@@ -260,7 +260,7 @@ void adafruitSendData(const String & feed, const uint32_t value) {
 		// HTTP 200 OK
 		if (httpCode == HTTP_CODE_OK) {
 			String payload = http.getString();
-			log_v(payload);
+			//log_v(payload);
 		}
 
 		http.end();

@@ -14,7 +14,7 @@
     <ProjectGuid>{C5F80730-F44F-4478-BDAE-6634EFC2CA88}</ProjectGuid>
     <RootNamespace>
     </RootNamespace>
-    <ProjectName>diplomka-esp</ProjectName>
+    <ProjectName>RideTrackWifi</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -79,7 +79,7 @@
     <ProjectCapability Include="VisualMicro" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="diplomka-esp.ino">
+    <None Include="RideTrackWifi.ino">
       <FileType>CppCode</FileType>
     </None>
   </ItemGroup>
@@ -93,8 +93,6 @@
     <ClInclude Include="time.hpp">
       <FileType>CppCode</FileType>
     </ClInclude>
-    <ClInclude Include="__vm\.diplomka-esp.vsarduino.h" />
-    <ClInclude Include="__vm\.RideTrack.vsarduino.h" />
     <ClInclude Include="__vm\.RideTrackWifi.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
