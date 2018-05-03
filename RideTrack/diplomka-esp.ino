@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WiFiUdp.h>
+#include <Preferences.h>
 
 #include "freertos/FreeRTOS.h"
 #include "esp_wifi.h"
@@ -147,6 +148,8 @@ QueueHandle_t  queue = NULL;
 const int QUEUE_SIZE = 100;
 
 
+Preferences preferences;
+
 /* Pass evet type to the main program using a queue. */
 static void IRAM_ATTR handleReedInterrupt(void *arg)
 {
@@ -252,47 +255,48 @@ void consumerTask(void *pvParameter)
 	while (1) {
 		xStatus = xQueueReceive(queue, &msg, (TickType_t)(100 / portTICK_PERIOD_MS));
 		if (xStatus == pdPASS) {
-			Serial.println("--- Printing file.");
-			bool deleteFile = false;
+			if (0) {
+				Serial.println("--- Printing file.");
+				bool deleteFile = false;
 
 
-			// Disable interrupts as displaying file takes some time
-			pcnt_intr_disable(PCNT_UNIT); 
-			gpio_intr_disable(BUTTON_PIN);
+				// Disable interrupts as displaying file takes some time
+				pcnt_intr_disable(PCNT_UNIT);
+				gpio_intr_disable(BUTTON_PIN);
 
-			kalfy::record::printAll();
-		
-			//if (gpio_get_level(BUTTON_PIN) == LOW) {
-			//	Serial.println("Deleting file");
-			//	kalfy::record::clear();
-			//}
-		
-			Serial.println("=== sendData called");
-			kalfy::ble::run();
-			Serial.println("sendData done");
-			//btStop();
+				kalfy::record::printAll();
 
-			kalfy::record::printAll();
-
-			if (connectWiFi() == WL_CONNECTED) {
-				configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-				printLocalTime();
+				//if (gpio_get_level(BUTTON_PIN) == LOW) {
+				//	Serial.println("Deleting file");
+				//	kalfy::record::clear();
+				//}
 
 				Serial.println("=== sendData called");
-				kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+				kalfy::ble::run();
 				Serial.println("sendData done");
+				//btStop();
 
-				WiFi.disconnect(true);
-				WiFi.mode(WIFI_OFF);
-			} 
+				kalfy::record::printAll();
 
-			//kalfy::record::clear();
-			
-			lastActivityTime = kalfy::time::getCurrentTime();
+				if (connectWiFi() == WL_CONNECTED) {
+					configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+					printLocalTime();
 
-			gpio_intr_enable(BUTTON_PIN);
-			pcnt_intr_enable(PCNT_UNIT);
+					Serial.println("=== sendData called");
+					kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+					Serial.println("sendData done");
 
+					WiFi.disconnect(true);
+					WiFi.mode(WIFI_OFF);
+				}
+
+				//kalfy::record::clear();
+
+				lastActivityTime = kalfy::time::getCurrentTime();
+
+				gpio_intr_enable(BUTTON_PIN);
+				pcnt_intr_enable(PCNT_UNIT);
+			}
 			goToSleep();
 		}
 
@@ -324,21 +328,27 @@ void consumerTask(void *pvParameter)
 }
 
 void goToSleep() {
-	rtc_gpio_init(REED_PIN);
-	gpio_pullup_dis(REED_PIN);
-	gpio_pulldown_en(REED_PIN);
+	//rtc_gpio_init(REED_PIN);
+	//gpio_pullup_dis(REED_PIN);
+	//gpio_pulldown_en(REED_PIN);
 
-	rtc_gpio_init(BUTTON_PIN);
-	gpio_pullup_dis(BUTTON_PIN);
-	gpio_pulldown_en(BUTTON_PIN);
+	//rtc_gpio_init(BUTTON_PIN);
+	//gpio_pullup_dis(BUTTON_PIN);
+	//gpio_pulldown_en(BUTTON_PIN);
 
-	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
+	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_ON);
+	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_ON);
+	//esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
+	//esp_sleep_enable_ext1_wakeup(BIT(REED_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
 
-  SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_XPD_SDIO_REG_M);
-  SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_SDIO_FORCE_M);
+	esp_sleep_enable_ext0_wakeup(REED_PIN, 1);
+	rtc_gpio_isolate(GPIO_NUM_12);
 
-	esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+	 //SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_XPD_SDIO_REG_M);
+	 //SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_SDIO_FORCE_M);
+
+	//esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");  // TBD wake up once a day
 
 	gettimeofday(&sleepEnterTime, NULL);
@@ -367,6 +377,13 @@ void setup()
 	Serial.println("Boot number: " + String(bootCount));
 
 	lastActivityTime = now;
+
+	preferences.begin("RidezTracker", false);
+	unsigned int resetTimes = preferences.getUInt("resetTimes", 0);
+	resetTimes++;
+	Serial.printf("Number of restart times: %d\n", resetTimes);
+	preferences.putUInt("resetTimes", resetTimes);
+	preferences.end();
 
 	woken();
 }

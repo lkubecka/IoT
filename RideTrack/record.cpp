@@ -125,7 +125,7 @@ namespace kalfy
 				cnt++;
 			}
 			Serial.println(cnt);
-			file.close();
+			uploadFailed(file);
 			
 		}
 		void clear() {
