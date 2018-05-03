@@ -9,3 +9,6 @@
 /RideTrackWifi/examples
 /RideTrackWifi/Release
 /.vs
+build
+/ESP32/deep_sleep/sdkconfig.old
+/ESP32/deep_sleep/sdkconfig.defaults
