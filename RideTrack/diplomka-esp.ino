@@ -8,11 +8,11 @@
 #include <Preferences.h>
 
 #include "freertos/FreeRTOS.h"
-#include "esp_wifi.h"
-#include "esp_system.h"
-#include "esp_event.h"
-#include "esp_event_loop.h"
-#include "nvs_flash.h"
+//#include "esp_wifi.h"
+//#include "esp_system.h"
+//#include "esp_event.h"
+//#include "esp_event_loop.h"
+//#include "nvs_flash.h"
 
 #include <HTTPClient.h>
 #include "record.hpp"
@@ -31,7 +31,7 @@
 #define NO_CONTACT 0
 volatile byte state = HIGH;
 
-const int MAX_WIFI_CONNECTION_ATTEMPTS = 20;
+const int MAX_WIFI_CONNECTION_ATTEMPTS = 3;
 const int MEASURE_PRESSURE_EVERY_NTH_ROTATION = 100;
 const int RECORD_NTH_ROTATION = 10;
 const uint64_t MIN_SAMPLING_TIME_US = 85UL;
@@ -39,11 +39,12 @@ const uint64_t MAX_IDLE_TIME_US = 600 * 1000 * 1000; // 10 minutes IDLE
 
 const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
-const gpio_num_t BUTTON_PIN = GPIO_NUM_12;
+const gpio_num_t BUTTON_PIN = GPIO_NUM_14;
 const uint32_t TRIGGERED_BY_REED = BIT(13);
-const uint32_t TRIGGERED_BY_BUTTON = BIT(12);
+const uint32_t TRIGGERED_BY_BUTTON = BIT(14);
 const uint64_t SLEEP_INTERVAL_uS = 20 * uS_TO_MS;
-const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 2000;
+const uint64_t ALTITUDE_UPDATE_PERIOD_MS = 20000;
+const uint64_t LAST_ACTIVITY_UPDATE_PERIOD_MS = 100000;
 const gpio_num_t BATTERY_PIN = GPIO_NUM_36; //VP pin
 
 const uint64_t uS_TO_S_FACTOR = 1000000UL;  /* Conversion factor for micro seconds to seconds */
@@ -188,24 +189,14 @@ typedef struct riderMessage_t
 
 void IRAM_ATTR handleButtonInterrupt() {
 	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-	timeval now = kalfy::time::getCurrentTime();
-	long delta = kalfy::time::durationBeforeNow(&lastEventTime, &now);
-	
-	if (delta > MIN_SAMPLING_TIME_US) {                 // Debounce pulses shorter than MIN_SAMPLING_TIME_US
-		if (1) { //++isrCounter % RECORD_NTH_ROTATION) {       // Record every RECORD_NTH_ROTATION
-			state = !state;
-			digitalWrite(LED_BUILTIN, state);
-			riderMessage_t msg;
-			msg.count = isrCounter;
-			msg.time = now;
-			xQueueSendToBackFromISR(queue, (void *)&msg, &xHigherPriorityTaskWoken);
-		}
-	}
-	lastEventTime = now;
-	//Serial.println(delta);
-	
+	state = !state;
+	digitalWrite(LED_BUILTIN, state);
 
-	//Now the buffer is empty we can switch context if necessary.
+	riderMessage_t msg;
+	msg.count = isrCounter;
+	msg.time = kalfy::time::getCurrentTime();;
+	xQueueSendToBackFromISR(queue, (void *)&msg, &xHigherPriorityTaskWoken);
+
 	if (xHigherPriorityTaskWoken)
 	{
 		portYIELD_FROM_ISR();
@@ -225,7 +216,7 @@ void saveRotationTask(void *pvParameter)
 		return;
 	}
 	while (1) {
-		xStatus = xQueueReceive(pcnt_evt_queue, &msg, (TickType_t)(1000 / portTICK_PERIOD_MS));
+		xStatus = xQueueReceive(pcnt_evt_queue, &msg, (TickType_t)(10 / portTICK_PERIOD_MS));
 		if (xStatus == pdPASS) {
 			Serial.print("(");
 			Serial.print((time_t)msg.time.tv_sec);
@@ -237,7 +228,7 @@ void saveRotationTask(void *pvParameter)
 			lastActivityTime = msg.time;
 		}
 
-		//vTaskDelay(500 / portTICK_PERIOD_MS); //wait for 500 ms
+	    vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
 	}
 }
 
@@ -247,15 +238,18 @@ void consumerTask(void *pvParameter)
 	riderMessage_t msg;
 	BaseType_t xStatus;
 	unsigned long altitudeUpdateStart = 0UL;
+	unsigned long activityUpdateStart = 0UL;
 
 	if (queue == NULL) {
 		printf("Queue is not ready");
 		return;
 	}
+
+	dailyUplinkSetup();
 	while (1) {
-		xStatus = xQueueReceive(queue, &msg, (TickType_t)(100 / portTICK_PERIOD_MS));
+		xStatus = xQueueReceive(queue, &msg, (TickType_t)(0 / portTICK_PERIOD_MS));
 		if (xStatus == pdPASS) {
-			if (0) {
+			if (1) {
 				Serial.println("--- Printing file.");
 				bool deleteFile = false;
 
@@ -271,9 +265,9 @@ void consumerTask(void *pvParameter)
 				//	kalfy::record::clear();
 				//}
 
-				Serial.println("=== sendData called");
-				kalfy::ble::run();
-				Serial.println("sendData done");
+				//Serial.println("=== sendData called");
+				//kalfy::ble::run();
+				//Serial.println("sendData done");
 				//btStop();
 
 				kalfy::record::printAll();
@@ -297,7 +291,7 @@ void consumerTask(void *pvParameter)
 				gpio_intr_enable(BUTTON_PIN);
 				pcnt_intr_enable(PCNT_UNIT);
 			}
-			goToSleep();
+			//goToSleep();
 		}
 
 		if ((millis() - altitudeUpdateStart) > ALTITUDE_UPDATE_PERIOD_MS) {
@@ -313,42 +307,49 @@ void consumerTask(void *pvParameter)
 			}
 		}
 
-		
-		timeval now = kalfy::time::getCurrentTime();
-		unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
-		Serial.printf("\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
-		Serial.printf("Time since last activity: %lu us\n", delta);
+		if ((millis() - activityUpdateStart) > LAST_ACTIVITY_UPDATE_PERIOD_MS) {
+			activityUpdateStart = millis();
+			timeval now = kalfy::time::getCurrentTime();
+			unsigned long delta = kalfy::time::durationBeforeNow(&lastActivityTime, &now);
+			Serial.printf("\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+			Serial.printf("Time since last activity: %lu us\n", delta);
 
-		if (delta > MAX_IDLE_TIME_US) {
-			goToSleep();
+			if (delta > MAX_IDLE_TIME_US) {
+				goToSleep();
+			}
 		}
-		
-		//vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
+				
+		vTaskDelay(1000 / portTICK_PERIOD_MS); //wait for 100 ms
 	}
 }
 
 void goToSleep() {
-	//rtc_gpio_init(REED_PIN);
-	//gpio_pullup_dis(REED_PIN);
-	//gpio_pulldown_en(REED_PIN);
+	timeval now = kalfy::time::getCurrentTime();
+	preferences.begin("RidezTracker", false);
+	preferences.putBytes("time_when_sleep", &now, sizeof(now));
+	preferences.end();
 
-	//rtc_gpio_init(BUTTON_PIN);
-	//gpio_pullup_dis(BUTTON_PIN);
-	//gpio_pulldown_en(BUTTON_PIN);
+	rtc_gpio_init(REED_PIN);
+	gpio_pullup_dis(REED_PIN);
+	gpio_pulldown_en(REED_PIN);
 
-	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_ON);
-	//esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_ON);
-	//esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
+	rtc_gpio_init(BUTTON_PIN);
+	gpio_pullup_dis(BUTTON_PIN);
+	gpio_pulldown_en(BUTTON_PIN);
+
+	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_ON);
+	esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_ON);
+	esp_sleep_enable_ext1_wakeup(BIT(REED_PIN) | BIT(BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
 	//esp_sleep_enable_ext1_wakeup(BIT(REED_PIN), ESP_EXT1_WAKEUP_ANY_HIGH);
 
-	esp_sleep_enable_ext0_wakeup(REED_PIN, 1);
-	rtc_gpio_isolate(GPIO_NUM_12);
+	//esp_sleep_enable_ext0_wakeup(REED_PIN, 1); // nefungovalo byl TSWA reset
+	rtc_gpio_isolate(GPIO_NUM_12); 
 
 	 //SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_XPD_SDIO_REG_M);
 	 //SET_PERI_REG_MASK(RTC_CNTL_SDIO_CONF_REG, RTC_CNTL_SDIO_FORCE_M);
 
-	//esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+	esp_deep_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 	Serial.println("Setup ESP32 to sleep for " + String((unsigned long)TIME_TO_SLEEP) + " Seconds");  // TBD wake up once a day
 
 	gettimeofday(&sleepEnterTime, NULL);
@@ -371,7 +372,7 @@ void setup()
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	int sleep_time_ms = (now.tv_sec - sleepEnterTime.tv_sec) * 1000 + (now.tv_usec - sleepEnterTime.tv_usec) / 1000;
-	Serial.printf("\n\nSleep time %d sec\n", sleep_time_ms/1000);
+	Serial.printf("\n\nSleep time %d sec\n", sleep_time_ms / 1000);
 
 	++bootCount;
 	Serial.println("Boot number: " + String(bootCount));
@@ -383,6 +384,19 @@ void setup()
 	resetTimes++;
 	Serial.printf("Number of restart times: %d\n", resetTimes);
 	preferences.putUInt("resetTimes", resetTimes);
+
+	if (now.tv_sec < 10000) {
+		
+		preferences.getBytes("time_when_sleep", &now, sizeof(now));
+		Serial.printf("Loading time when going to sleep sleep: %ul\n", now.tv_sec);
+		struct timezone tz;
+		tz.tz_minuteswest = 60;
+		tz.tz_dsttime = 60;
+		settimeofday(&now, &tz);
+		time_t t = time(NULL);
+		log_d("Time: %s", ctime(&t));
+	}
+
 	preferences.end();
 
 	woken();
@@ -431,7 +445,8 @@ void onDemandUplinkSetup() {
 	connectWiFi();
 	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
 	Serial.println("sendData done");
-	goToSleep();
+	WiFi.disconnect(true);
+	WiFi.mode(WIFI_OFF);
 }
 
 void dailyUplinkSetup() {
@@ -440,7 +455,8 @@ void dailyUplinkSetup() {
 	Serial.println("=== sendData called");
 	kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
 	Serial.println("sendData done");
-	goToSleep();
+	WiFi.disconnect(true);
+	WiFi.mode(WIFI_OFF);
 }
 
 void get_altitude() {
@@ -480,16 +496,19 @@ void woken()
 		{
 			Serial.printf("Entering On Demand Uplink mode");
 			onDemandUplinkSetup();
+			goToSleep();
 		}
 		break;
 	case 3:
 		{
 			Serial.printf("Entering On Demand Uplink mode");
 			dailyUplinkSetup();
+			goToSleep();
 		}
 		break;
 	default:
 		Serial.println("Wakeup was not caused by deep sleep");
+		//dailyUplinkSetup();
 		normalModeSetup();
 		break;
 	}
@@ -529,21 +548,18 @@ wl_status_t connectWiFi() {
 	// Connect to WiFi access point.
 	Serial.println();
 	Serial.println();
-	WiFi.mode(WIFI_STA);
-	WiFi.disconnect();
-	scanWiFi();
 	
 	Serial.print("Connecting to ");
 	Serial.println(WLAN_SSID);
 
-  //WiFi.mode(WIFI_OFF);
-  delay(1000);
+    //WiFi.mode(WIFI_OFF);
+    delay(2000);
 	Serial.println("Connecting Wifi ");
 	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
   
 		//WiFi.disconnect(true);                                      // Clear Wifi Credentials
-  //  WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
-   // WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
+        //WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
+        //WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
     
 		WiFi.begin(WLAN_SSID, WLAN_PASS);
 		if (WiFi.status() == WL_CONNECTED) {
@@ -556,8 +572,10 @@ wl_status_t connectWiFi() {
 		else {
 			Serial.print("WiFi connection attempt: ");
 			Serial.println(loops);
-			delay(1000);
+			
 		}
+		vTaskDelay(10000 / portTICK_PERIOD_MS);
+		//delay(10000);
 	}
 	byte mac[6];
 	WiFi.macAddress(mac);
@@ -598,9 +616,10 @@ wl_status_t connectWiFi() {
 
 
 float readBatteryVoltage() { 
-	const float ADC_RESOLUTION = 4096.0f;  // 12bit ADC = 2^12
-	const float REFERENCE_VOLTAGE = 3.30f; // nominal EPS voltage
-	const float VOLTAGE_DIVIDER = 127.0f / 100.0f;  // LiPo battery 4.2 V to 3.3, 127kOhm+100kOhm
+	const float DEFAULT_VREF = 1.1f;
+ 	const float ADC_RESOLUTION = 4096.0f;  // 12bit ADC = 2^12
+	const float REFERENCE_VOLTAGE = 4.8f / 0.23f; // 1.0f; // nominal EPS voltage
+	const float VOLTAGE_DIVIDER = 1.0f; // 122.0f / 22.0f;  // LiPo battery 3.7V to 0.66V, 22kOhm+100kOhm
 	return VOLTAGE_DIVIDER * REFERENCE_VOLTAGE * float(analogRead(BATTERY_PIN)) / ADC_RESOLUTION;  // LiPo battery
 	//Serial.print("Battery Voltage = "); 
 	//Serial.print(VBAT, 2); 
