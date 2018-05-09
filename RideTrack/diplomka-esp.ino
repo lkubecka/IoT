@@ -79,18 +79,18 @@ volatile unsigned long lastIsrAt = 0;
 
 static uint64_t numberOfInterrupts = 0;
 
-//#define WLAN_SSID       "sde-guest"
-//#define WLAN_PASS       "4Our6uest"
+#define WLAN_SSID       "sde-guest"
+#define WLAN_PASS       "4Our6uest"
 
 //#define WLAN_SSID       "Redmi_Libor"
 //#define WLAN_PASS       "nahatch123"
 
-#define WLAN_SSID       "NAHATCH"
-#define WLAN_PASS       "nahatch123"
+//#define WLAN_SSID       "NAHATCH"
+//#define WLAN_PASS       "nahatch123"
 
 const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net/api/v1/Records/";
 const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
-const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJiNDg5ODE1Yy1iOWU2LTRjNzUtOTNmZS0wNDE4MTEwYzk5NDciLCJleHAiOjE1MjczNDEzMjMsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.FjuVmDSP8HGJttu7hC_T6rRoCLUDYeadn_cZdMNITb0";
+const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiI0MjA2NmM1YS1lZTA5LTQwNmMtOGIzNC05ZGMyNzVmMjZmMDciLCJleHAiOjE1Mjg0Njk0MTYsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.7-TDYGT48sX0VksCpAYzYCAtXuJ2Djoeq2HCIcEFsGY";
 
 const char* ODOCYCLE_CERT = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -233,7 +233,7 @@ void saveRotationTask(void *pvParameter)
 }
 
 
-void consumerTask(void *pvParameter)
+void mainTask(void *pvParameter)
 {
 	riderMessage_t msg;
 	BaseType_t xStatus;
@@ -270,7 +270,7 @@ void consumerTask(void *pvParameter)
 				//Serial.println("sendData done");
 				//btStop();
 
-				kalfy::record::printAll();
+				//kalfy::record::printAll();
 
 				if (connectWiFi() == WL_CONNECTED) {
 					configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -280,8 +280,8 @@ void consumerTask(void *pvParameter)
 					kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
 					Serial.println("sendData done");
 
-					WiFi.disconnect(true);
-					WiFi.mode(WIFI_OFF);
+					//WiFi.disconnect(true);
+					//WiFi.mode(WIFI_OFF);
 				}
 
 				//kalfy::record::clear();
@@ -424,7 +424,7 @@ void normalModeSetup() {
 	pinMode(REED_PIN, INPUT_PULLDOWN);
 
 	xTaskCreate(
-		consumerTask,     /* Task function. */
+		mainTask,     /* Task function. */
 		"Consumer",       /* String with name of task. */
 		8128,            /* Stack size in words. */
 		NULL,             /* Parameter passed as input of the task */
@@ -557,9 +557,9 @@ wl_status_t connectWiFi() {
 	Serial.println("Connecting Wifi ");
 	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
   
-		//WiFi.disconnect(true);                                      // Clear Wifi Credentials
-        //WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
-        //WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
+		WiFi.disconnect(true);                                      // Clear Wifi Credentials
+        WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
+        WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
     
 		WiFi.begin(WLAN_SSID, WLAN_PASS);
 		if (WiFi.status() == WL_CONNECTED) {

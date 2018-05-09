@@ -1,4 +1,5 @@
-/.vs/
-/.vscode/
-/__vm/
-/Debug/
+sdkconfig*
+.cproject
+.project
+.settings/*
+build/*

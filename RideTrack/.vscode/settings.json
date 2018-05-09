@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "bmp180.h": "c",
+        "esp_log.h": "c",
+        "altimeter.h": "c",
+        "revolution_counter.h": "c",
+        "time.h": "c",
+        "esp_err.h": "c",
+        "pcnt.h": "c",
+        "esp_event_loop.h": "c",
+        "cdefs.h": "c",
+        "nvs_flash.h": "c",
+        "types.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
+}
