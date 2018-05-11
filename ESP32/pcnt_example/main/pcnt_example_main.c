@@ -1,7 +1,10 @@
 /* Pulse counter module - Example
+
    For other examples please check:
    https://github.com/espressif/esp-idf/tree/master/examples
+
    This example code is in the Public Domain (or CC0 licensed, at your option.)
+
    Unless required by applicable law or agreed to in writing, this
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
@@ -42,17 +45,15 @@
  *   - will be reset to zero.
  */
 #define PCNT_TEST_UNIT      PCNT_UNIT_0
-#define PCNT_H_LIM_VAL      32767
-#define PCNT_L_LIM_VAL     -1
-#define PCNT_THRESH1_VAL    20
-#define PCNT_THRESH0_VAL    5
+#define PCNT_H_LIM_VAL      10
+#define PCNT_L_LIM_VAL     -10
+#define PCNT_THRESH1_VAL    5
+#define PCNT_THRESH0_VAL   -5
 #define PCNT_INPUT_SIG_IO   13  // Pulse Input GPIO
 #define PCNT_INPUT_CTRL_IO  5  // Control GPIO HIGH=count up, LOW=count down
 #define LEDC_OUTPUT_IO      2 // Output GPIO of a sample 1 Hz pulse generator
 
 xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
-
-
 
 /* A sample structure to pass events from the PCNT
  * interrupt handler to the main program.
@@ -73,16 +74,17 @@ static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
     pcnt_evt_t evt;
     portBASE_TYPE HPTaskAwoken = pdFALSE;
 
-
-    if (intr_status & (BIT(PCNT_UNIT_0))) {
-        evt.unit = PCNT_UNIT_0;
-        /* Save the PCNT event type that caused an interrupt
-           to pass it to the main program */
-        evt.status = PCNT.status_unit[PCNT_UNIT_0].val;
-        PCNT.int_clr.val = BIT(PCNT_UNIT_0);
-        xQueueSendFromISR(pcnt_evt_queue, &evt, &HPTaskAwoken);
-        if (HPTaskAwoken == pdTRUE) {
-            portYIELD_FROM_ISR();
+    for (i = 0; i < PCNT_UNIT_MAX; i++) {
+        if (intr_status & (BIT(i))) {
+            evt.unit = i;
+            /* Save the PCNT event type that caused an interrupt
+               to pass it to the main program */
+            evt.status = PCNT.status_unit[i].val;
+            PCNT.int_clr.val = BIT(i);
+            xQueueSendFromISR(pcnt_evt_queue, &evt, &HPTaskAwoken);
+            if (HPTaskAwoken == pdTRUE) {
+                portYIELD_FROM_ISR();
+            }
         }
     }
 }
@@ -119,47 +121,28 @@ static void ledc_init(void)
 static void pcnt_example_init(void)
 {
     /* Prepare configuration for the PCNT unit */
-//    pcnt_config_t pcnt_config = {
-//        // Set PCNT input signal and control GPIOs
-//        .pulse_gpio_num = PCNT_INPUT_SIG_IO,
-//        .ctrl_gpio_num = PCNT_PIN_NOT_USED,
-//        .channel = PCNT_CHANNEL_0,
-//        .unit = PCNT_TEST_UNIT,
-//        // What to do on the positive / negative edge of pulse input?
-//        .pos_mode = PCNT_COUNT_INC,   // Count up on the positive edge
-//        .neg_mode = PCNT_COUNT_DIS,   // Keep the counter value on the negative edge
-//        // What to do when control input is low or high?
-//        .lctrl_mode = PCNT_MODE_REVERSE, // Reverse counting direction if low
-//        .hctrl_mode = PCNT_MODE_KEEP,    // Keep the primary counter mode if high
-//        // Set the maximum and minimum limit values to watch
-//        .counter_h_lim = PCNT_H_LIM_VAL,
-//        .counter_l_lim = PCNT_L_LIM_VAL,
-//    };
-
-    pcnt_config_t pcnt_config;
+    pcnt_config_t pcnt_config = {
         // Set PCNT input signal and control GPIOs
-        pcnt_config.pulse_gpio_num = PCNT_INPUT_SIG_IO;
-        pcnt_config.ctrl_gpio_num = PCNT_PIN_NOT_USED;
-        pcnt_config.channel = PCNT_CHANNEL_0;
-        pcnt_config.unit = PCNT_TEST_UNIT;
+        .pulse_gpio_num = PCNT_INPUT_SIG_IO,
+        .ctrl_gpio_num = PCNT_INPUT_CTRL_IO,
+        .channel = PCNT_CHANNEL_0,
+        .unit = PCNT_TEST_UNIT,
         // What to do on the positive / negative edge of pulse input?
-        pcnt_config.pos_mode = PCNT_COUNT_INC;   // Count up on the positive edge
-        pcnt_config.neg_mode = PCNT_COUNT_DIS;   // Keep the counter value on the negative edge
+        .pos_mode = PCNT_COUNT_INC,   // Count up on the positive edge
+        .neg_mode = PCNT_COUNT_DIS,   // Keep the counter value on the negative edge
         // What to do when control input is low or high?
-        pcnt_config.lctrl_mode = PCNT_MODE_KEEP ; //  Keep the primary counter mode if high
-        pcnt_config.hctrl_mode = PCNT_MODE_KEEP;    // Keep the primary counter mode if high
+        .lctrl_mode = PCNT_MODE_KEEP, // Reverse counting direction if low
+        .hctrl_mode = PCNT_MODE_KEEP,    // Keep the primary counter mode if high
         // Set the maximum and minimum limit values to watch
-        pcnt_config.counter_h_lim = PCNT_H_LIM_VAL;
-        pcnt_config.counter_l_lim = PCNT_L_LIM_VAL;
-
+        .counter_h_lim = PCNT_H_LIM_VAL,
+        .counter_l_lim = PCNT_L_LIM_VAL,
+    };
     /* Initialize PCNT unit */
     pcnt_unit_config(&pcnt_config);
 
     /* Configure and enable the input filter */
-    pcnt_set_filter_value(PCNT_TEST_UNIT, 1000);
+    pcnt_set_filter_value(PCNT_TEST_UNIT, 100);
     pcnt_filter_enable(PCNT_TEST_UNIT);
-    //pcnt_filter_disable(PCNT_TEST_UNIT);
-    
 
     /* Set threshold 0 and 1 values and enable events to watch */
     pcnt_set_event_value(PCNT_TEST_UNIT, PCNT_EVT_THRES_1, PCNT_THRESH1_VAL);
@@ -181,44 +164,37 @@ static void pcnt_example_init(void)
 
     /* Everything is set up, now go to counting */
     pcnt_counter_resume(PCNT_TEST_UNIT);
+
+    
+	gpio_pullup_dis(PCNT_INPUT_SIG_IO);
+	gpio_pulldown_en(PCNT_INPUT_SIG_IO);
 }
 
-void setup()
+void app_main()
 {
     /* Initialize LEDC to generate sample pulse signal */
     ledc_init();
-
-   
 
     /* Initialize PCNT event queue and PCNT functions */
     pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
     pcnt_example_init();
 
-  //  pinMode(PCNT_INPUT_SIG_IO, INPUT_PULLDOWN);
-
-    
-
-}
-
-void loop() {
+    int16_t count = 0;
+    pcnt_evt_t evt;
+    portBASE_TYPE res;
+    while (1) {
         /* Wait for the event information passed from PCNT's interrupt handler.
          * Once received, decode the event type and print it on the serial monitor.
          */
-        pcnt_evt_t evt;
-        portBASE_TYPE res;
-        int16_t count = 0;
-    
         res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
         if (res == pdTRUE) {
             pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
             printf("Event PCNT unit[%d]; cnt: %d\n", evt.unit, count);
             if (evt.status & PCNT_STATUS_THRES1_M) {
                 printf("THRES1 EVT\n");
-                pcnt_counter_clear(PCNT_TEST_UNIT);
             }
             if (evt.status & PCNT_STATUS_THRES0_M) {
                 printf("THRES0 EVT\n");
-                
             }
             if (evt.status & PCNT_STATUS_L_LIM_M) {
                 printf("L_LIM EVT\n");
@@ -233,5 +209,5 @@ void loop() {
             pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
             printf("Current counter value :%d\n", count);
         }
-    delay(1000);
+    }
 }

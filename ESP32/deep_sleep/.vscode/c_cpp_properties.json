@@ -1,0 +1,110 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "/usr/include",
+                "/usr/local/include",
+                "${workspaceFolder}"
+            ],
+            "defines": [],
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "/usr/include",
+                    "/usr/local/include",
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ]
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "/usr/include",
+                "/usr/local/include",
+                "${workspaceFolder}"
+            ],
+            "defines": [],
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "/usr/include",
+                    "/usr/local/include",
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            }
+        },
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/build/include",
+                "${workspaceFolder}/components/pcnt",
+                "${workspaceFolder}/components/preferences",
+                "${workspaceFolder}/components/utils",
+                "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/heap/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/newlib/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/newlib/include/sys",
+                "c:/msys32/home/Libor/esp/esp-idf/components/esp32/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/driver/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/driver/include/driver",
+                "c:/msys32/home/Libor/esp/esp-idf/components/soc/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/soc/esp32/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/ulp/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/nvs_flash/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/tcpip_adapter/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip",
+                "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/port",
+                "c:/msys32/home/Libor/esp/esp-idf/components/vfs/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "intelliSenseMode": "msvc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${workspaceFolder}/build/include",
+                    "${workspaceFolder}/components/pcnt",
+                    "${workspaceFolder}/components/preferences",
+                    "${workspaceFolder}/components/utils",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/heap/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/newlib/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/newlib/include/sys",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/esp32/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/driver/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/driver/include/driver",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/soc/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/soc/esp32/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/ulp/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/nvs_flash/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/tcpip_adapter/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/port",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/vfs/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 4
+}

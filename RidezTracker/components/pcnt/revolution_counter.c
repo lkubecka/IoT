@@ -35,9 +35,9 @@ static void IRAM_ATTR handleReedInterrupt(void *arg)
 		state = !state;
 		gpio_set_level(LED_BUILTIN, state);
         
-		struct timeval now;
-	    gettimeofday(&now, NULL);
-		evt.time = now;
+		// struct timeval now;
+	    // gettimeofday(&now, NULL);
+		evt.time = 0; //now;
 		evt.status = PCNT.status_unit[PCNT_UNIT].val;
 
 		PCNT.int_clr.val = BIT(PCNT_UNIT);
@@ -62,9 +62,6 @@ void initPcnt(void)
 	if (pcnt_evt_queue == NULL) {
 		esp_log_write(ESP_LOG_ERROR, TAG, "Error creating revolution message queue");
 	}
-	
-	// gpio_pullup_dis(REED_PIN);
-	// gpio_pulldown_en(REED_PIN);
 
 	pcnt_config_t pcnt_config;
 	pcnt_config.pulse_gpio_num = REED_PIN;
@@ -85,8 +82,8 @@ void initPcnt(void)
 	pcnt_unit_config(&pcnt_config);
 
 	/* Configure and enable the input filter */
-	// pcnt_set_filter_value(PCNT_UNIT, 100);
-	// pcnt_filter_enable(PCNT_UNIT);
+	pcnt_set_filter_value(PCNT_UNIT, 1000);
+	pcnt_filter_enable(PCNT_UNIT);
 
 	/* Set threshold 0 and 1 values and enable events to watch */
 	pcnt_set_event_value(PCNT_UNIT, PCNT_EVT_THRES_1, PCNT_THRESH1_VAL);
@@ -109,6 +106,9 @@ void initPcnt(void)
 	/* Everything is set up, now go to counting */
 	pcnt_counter_resume(PCNT_UNIT);
 	esp_log_write(ESP_LOG_INFO, TAG, "PCNT started.");
+
+	gpio_pullup_dis(REED_PIN);
+	gpio_pulldown_en(REED_PIN);
 }
 
 int16_t getNumberOfRevolutions(void) {

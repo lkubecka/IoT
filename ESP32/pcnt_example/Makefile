@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := rideTrack
+PROJECT_NAME := pcnt
 
 include $(IDF_PATH)/make/project.mk
 
