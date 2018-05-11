@@ -10,10 +10,10 @@
 #include "driver/pcnt.h"
 #include "esp_attr.h"
 #include "soc/gpio_sig_map.h"
-#include "revolution_counter.hpp"
+#include "revolutions_counter.hpp"
 #include "time.hpp"
 
-static const char* TAG = "RevolutionCounter";
+static const char* TAG = "RevolutionsCounter";
 
 
 xQueueHandle counterEventQueue = NULL;   // A queue to handle pulse counter events
@@ -24,7 +24,7 @@ xQueueHandle counterEventQueue = NULL;   // A queue to handle pulse counter even
 static void IRAM_ATTR handleReedInterrupt(void *arg)
 {
 	uint32_t intr_status = PCNT.int_st.val;
-	RevolutionCounter::pcnt_evt_t evt;
+	RevolutionsCounter::pcnt_evt_t evt;
 	portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
     
 	if (intr_status & (BIT(PCNT_UNIT))) {
@@ -46,17 +46,17 @@ static void IRAM_ATTR handleReedInterrupt(void *arg)
 	}
 }
 
-RevolutionCounter::RevolutionCounter(gpio_num_t reedPin) {
+RevolutionsCounter::RevolutionsCounter(gpio_num_t reedPin) {
 	_reedPin = reedPin;
 
-	RevolutionCounter::_initPcnt();
+	RevolutionsCounter::_initPcnt();
 }
 
-RevolutionCounter::~RevolutionCounter()
+RevolutionsCounter::~RevolutionsCounter()
 {
 }
 
-int16_t RevolutionCounter::getNumberOfRevolutions(void) {
+int16_t RevolutionsCounter::getNumberOfRevolutions(void) {
 	int16_t pcntCntr = 0;
 	if (pcnt_get_counter_value(_pcntUnit, &pcntCntr) != ESP_OK) {
 		esp_log_write(ESP_LOG_ERROR, TAG, "Cannot read PCNT");
@@ -64,19 +64,19 @@ int16_t RevolutionCounter::getNumberOfRevolutions(void) {
 	return pcntCntr;
 }	
 
-void RevolutionCounter::disable(void) {
+void RevolutionsCounter::disable(void) {
 	pcnt_counter_pause(_pcntUnit);
 	pcnt_intr_disable(_pcntUnit);
 	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter stopped.");
 }
 
-void RevolutionCounter::enable(void) {
+void RevolutionsCounter::enable(void) {
 	pcnt_intr_enable(_pcntUnit);
 	pcnt_counter_resume(_pcntUnit);
 	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter started.");
 }
 
-void RevolutionCounter::_initPcnt(void)
+void RevolutionsCounter::_initPcnt(void)
 {
 	pcnt_config_t pcnt_config;
 	pcnt_config.pulse_gpio_num = _reedPin;

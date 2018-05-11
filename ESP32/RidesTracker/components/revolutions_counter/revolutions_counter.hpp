@@ -1,5 +1,5 @@
-#ifndef REVOLUTION_COUNTER_H
-#define REVOLUTION_COUNTER_H
+#ifndef REVOLUTIONS_COUNTER_H
+#define REVOLUTIONS_COUNTER_H
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -8,7 +8,7 @@
 
 extern xQueueHandle counterEventQueue;
 
-class RevolutionCounter {
+class RevolutionsCounter {
     private:
 		const int  RECORD_NTH_ROTATION = 10;
 		const int  _msgQueueSize = 10;
@@ -28,11 +28,11 @@ class RevolutionCounter {
 			uint32_t status; // information on the event type that caused the interrupt
 		} pcnt_evt_t;
 
-		RevolutionCounter(gpio_num_t reedPin);
-		~RevolutionCounter();
+		RevolutionsCounter(gpio_num_t reedPin);
+		~RevolutionsCounter();
 		int16_t getNumberOfRevolutions(void);
 		void disable(void);
 		void enable(void);
 };
 
-#endif  // REVOLUTION_COUNTER_H
+#endif  // REVOLUTIONS_COUNTER_H

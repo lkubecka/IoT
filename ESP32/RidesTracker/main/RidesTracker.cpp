@@ -8,12 +8,16 @@
 */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include <stdio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_system.h>
+#include <driver/adc.h>
 #include "esp_sleep.h"
 #include "esp_log.h"
 #include "esp32/ulp.h"
@@ -25,15 +29,21 @@
 #include "soc/rtc.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "revolution_counter.hpp"
+#include "revolutions_counter.hpp"
 #include "Preferences.hpp"
 #include "time.hpp"
+#include "bmp180.h"
 
 
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
 #define DAYLIGHT_SAVING_MINS 60
+
+const gpio_num_t SDA_GPIO = GPIO_NUM_19;
+const gpio_num_t SCL_GPIO = GPIO_NUM_18;
+
+#define ADC_CHANNEL ADC1_CHANNEL_0 /*!< ADC1 channel 0 is GPIO36 = VP pin*/
 
 const gpio_num_t BUTTON_PIN = GPIO_NUM_14;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
@@ -141,7 +151,7 @@ void selectStartupMode(void) {
 
 void saveRotationTask(void *pvParameter)
 {
-	RevolutionCounter::pcnt_evt_t msg;
+	RevolutionsCounter::pcnt_evt_t msg;
 	BaseType_t xStatus;
 
 	if (counterEventQueue == NULL) {
@@ -172,7 +182,35 @@ void app_main()
 
     selectStartupMode();
 
-    RevolutionCounter revolutionCounter(REED_PIN); 
+    gpio_pullup_en(SCL_GPIO);
+	gpio_pulldown_dis(SCL_GPIO);
+    gpio_set_direction(SCL_GPIO, GPIO_MODE_OUTPUT );
+
+    gpio_pullup_en(SDA_GPIO);
+	gpio_pulldown_dis(SDA_GPIO);
+    gpio_set_direction(SDA_GPIO, GPIO_MODE_INPUT_OUTPUT );
+
+    // bmp180_dev_t dev;
+    // esp_err_t res;
+    // while (i2cdev_init() != ESP_OK)
+    // {
+    //     printf("Could not init I2Cdev library\n");
+    //     vTaskDelay(250 / portTICK_PERIOD_MS);
+    // }
+
+    // while (bmp180_init_desc(&dev, I2C_NUM_0 , SDA_GPIO, SCL_GPIO) != ESP_OK)
+    // {
+    //     printf("Could not init device descriptor\n");
+    //     vTaskDelay(250 / portTICK_PERIOD_MS);
+    // }
+
+    // while ((res = bmp180_init(&dev)) != ESP_OK)
+    // {
+    //     printf("Could not init BMP180, err: %d\n", res);
+    //     vTaskDelay(250 / portTICK_PERIOD_MS);
+    // }
+
+    RevolutionsCounter RevolutionsCounter(REED_PIN); 
 
     xTaskCreate(
 		saveRotationTask,       /* Task function. */
@@ -182,11 +220,32 @@ void app_main()
 		10,                     /* Priority of the task. */
 		NULL);                  /* Task handle. */
 
+    
 
     // first time update of reference pressure
     while (1) {
 
-            esp_log_write(ESP_LOG_INFO, TAG, "Number of revolutions %d\n", revolutionCounter.getNumberOfRevolutions());
+            esp_log_write(ESP_LOG_INFO, TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
+           
+            // float temp;
+            // uint32_t pressure;
+
+            // esp_log_write(ESP_LOG_INFO, TAG, "Current core: %d\n", xPortGetCoreID());
+
+            // res = bmp180_measure(&dev, &temp, &pressure, BMP180_MODE_STANDARD);
+            // if (res != ESP_OK)
+            //     esp_log_write(ESP_LOG_ERROR, TAG, "Could not measure: %d\n", res);
+            // else
+            //     esp_log_write(ESP_LOG_INFO, TAG, "Temperature: %.2f degrees Celsius; Pressure: %d MPa\n", temp, pressure);
+
+
+            adc1_config_width(ADC_WIDTH_BIT_12);
+            adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
+            int val = adc1_get_raw(ADC_CHANNEL);    
+            esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %dV\n", val);
+            esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*val/4096);
+           
+
 			esp_log_write(ESP_LOG_INFO, TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
 			
             struct timeval now = kalfy::time::getCurrentTime();
@@ -194,7 +253,7 @@ void app_main()
 			esp_log_write(ESP_LOG_INFO, TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
             
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
-                revolutionCounter.disable();
+                RevolutionsCounter.disable();
 
 				gpio_intr_disable(BUTTON_PIN);
 				goToSleep();
@@ -204,9 +263,6 @@ void app_main()
     }
     
 }
-
-
-
 
 
 #ifdef __cplusplus
