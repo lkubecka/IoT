@@ -18,8 +18,8 @@
 #include <freertos/task.h>
 #include <esp_system.h>
 #include <driver/adc.h>
+#include <driver/gpio.h>
 #include "esp_sleep.h"
-#include "esp_log.h"
 #include "esp32/ulp.h"
 #include "driver/touch_pad.h"
 #include "driver/adc.h"
@@ -29,19 +29,17 @@
 #include "soc/rtc.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "bmp180.h"
 #include "revolutions_counter.hpp"
 #include "Preferences.hpp"
 #include "time.hpp"
-#include "bmp180.h"
-
-
+#include "FileSystem.hpp"
+#include "File.hpp"
+#include "altimeter.h"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
 #define DAYLIGHT_SAVING_MINS 60
-
-const gpio_num_t SDA_GPIO = GPIO_NUM_19;
-const gpio_num_t SCL_GPIO = GPIO_NUM_18;
 
 #define ADC_CHANNEL ADC1_CHANNEL_0 /*!< ADC1 channel 0 is GPIO36 = VP pin*/
 
@@ -158,11 +156,18 @@ void saveRotationTask(void *pvParameter)
 		esp_log_write(ESP_LOG_ERROR, TAG, "Revolution event queue not ready.");
 		return;
 	}
+
+    File recordFile("/spiffs/records.txt");
+    
 	while (1) {
 		xStatus = xQueueReceive(counterEventQueue, &msg, 0);
 		if (xStatus == pdPASS) {
             esp_log_write(ESP_LOG_INFO, TAG, "t%lu|%lu\n", (time_t)msg.time.tv_sec, (suseconds_t)msg.time.tv_usec);
 	        gpio_set_level(LED_PIN, state = !state);
+
+            char buffer[32];
+			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
+            recordFile.appendToFile(buffer);
 			//kalfy::record::saveRevolution(msg.time);	
 			//kalfy::record::savePressure(presure);
 
@@ -178,70 +183,52 @@ void app_main()
 
     nvs_flash_init();
 
+    FileSystem fileSystem;
+    fileSystem.begin();
+    fileSystem.info();
+
+
     setLastKnownTime();
 
     selectStartupMode();
-
-    gpio_pullup_en(SCL_GPIO);
-	gpio_pulldown_dis(SCL_GPIO);
-    gpio_set_direction(SCL_GPIO, GPIO_MODE_OUTPUT );
-
-    gpio_pullup_en(SDA_GPIO);
-	gpio_pulldown_dis(SDA_GPIO);
-    gpio_set_direction(SDA_GPIO, GPIO_MODE_INPUT_OUTPUT );
-
-    // bmp180_dev_t dev;
-    // esp_err_t res;
-    // while (i2cdev_init() != ESP_OK)
-    // {
-    //     printf("Could not init I2Cdev library\n");
-    //     vTaskDelay(250 / portTICK_PERIOD_MS);
-    // }
-
-    // while (bmp180_init_desc(&dev, I2C_NUM_0 , SDA_GPIO, SCL_GPIO) != ESP_OK)
-    // {
-    //     printf("Could not init device descriptor\n");
-    //     vTaskDelay(250 / portTICK_PERIOD_MS);
-    // }
-
-    // while ((res = bmp180_init(&dev)) != ESP_OK)
-    // {
-    //     printf("Could not init BMP180, err: %d\n", res);
-    //     vTaskDelay(250 / portTICK_PERIOD_MS);
-    // }
-
+    
     RevolutionsCounter RevolutionsCounter(REED_PIN); 
 
     xTaskCreate(
 		saveRotationTask,       /* Task function. */
 		"ReedConsumer",         /* String with name of task. */
-		2048,                   /* Stack size in words. */
+		4096,                   /* Stack size in words. */
 		NULL,                   /* Parameter passed as input of the task */
 		10,                     /* Priority of the task. */
 		NULL);                  /* Task handle. */
 
-    
+    //xTaskCreatePinnedToCore(bmp180_test, "bmp180_test", configMINIMAL_STACK_SIZE * 15, NULL, 5, NULL, APP_CPU_NUM);
+   // xTaskCreate(bmp180_test, "bmp180_test", configMINIMAL_STACK_SIZE * 15, NULL, 5, NULL);
 
     // first time update of reference pressure
+    File recordFile("/spiffs/records.txt");
+
+
+    gpio_pullup_dis(BUTTON_PIN);
+	gpio_pulldown_en(BUTTON_PIN);
+    gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
+
     while (1) {
 
+            printf("GPIO[%d] val: %d\n", BUTTON_PIN, gpio_get_level(BUTTON_PIN));
+            if ( gpio_get_level(BUTTON_PIN) == true) {
+                recordFile.deleteFile();
+            }
+
             esp_log_write(ESP_LOG_INFO, TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
-           
-            // float temp;
-            // uint32_t pressure;
-
-            // esp_log_write(ESP_LOG_INFO, TAG, "Current core: %d\n", xPortGetCoreID());
-
-            // res = bmp180_measure(&dev, &temp, &pressure, BMP180_MODE_STANDARD);
-            // if (res != ESP_OK)
-            //     esp_log_write(ESP_LOG_ERROR, TAG, "Could not measure: %d\n", res);
-            // else
-            //     esp_log_write(ESP_LOG_INFO, TAG, "Temperature: %.2f degrees Celsius; Pressure: %d MPa\n", temp, pressure);
-
+            
+            initAltimeter();
+            getAltitude();
 
             adc1_config_width(ADC_WIDTH_BIT_12);
             adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
             int val = adc1_get_raw(ADC_CHANNEL);    
+
             esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %dV\n", val);
             esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*val/4096);
            
@@ -252,10 +239,15 @@ void app_main()
 			struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
 			esp_log_write(ESP_LOG_INFO, TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
             
+            if (kalfy::time::toMicroSecs(&delta) > (10*1000*1000)) {
+                recordFile.printFile();
+            }
+
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 RevolutionsCounter.disable();
 
 				gpio_intr_disable(BUTTON_PIN);
+                fileSystem.end();
 				goToSleep();
 			}
         
@@ -263,6 +255,7 @@ void app_main()
     }
     
 }
+
 
 
 #ifdef __cplusplus
