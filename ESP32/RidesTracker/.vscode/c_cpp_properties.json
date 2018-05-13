@@ -55,7 +55,7 @@
                 "${workspaceFolder}/components/revolutions_counter",
                 "${workspaceFolder}/components/storage",
                 "${workspaceFolder}/components/wifi",
-                "${workspaceFolder}/components/http",
+                "${workspaceFolder}/components/https",
                 "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
@@ -72,8 +72,12 @@
                 "c:/msys32/home/Libor/esp/esp-idf/components/tcpip_adapter/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip",
                 "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/port",
+                "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/posix",
                 "c:/msys32/home/Libor/esp/esp-idf/components/vfs/include",
-                "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include"
+                "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/esp-tls",
+                "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include"
             ],
             "defines": [
                 "_DEBUG",
@@ -93,7 +97,7 @@
                     "${workspaceFolder}/components/revolutions_counter",
                     "${workspaceFolder}/components/storage",
                     "${workspaceFolder}/components/wifi",
-                    "${workspaceFolder}/components/http",
+                    "${workspaceFolder}/components/https",
                     "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
@@ -110,8 +114,12 @@
                     "c:/msys32/home/Libor/esp/esp-idf/components/tcpip_adapter/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip",
                     "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/port",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/lwip/include/lwip/posix",
                     "c:/msys32/home/Libor/esp/esp-idf/components/vfs/include",
-                    "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include"
+                    "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/esp-tls",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""

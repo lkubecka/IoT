@@ -37,7 +37,10 @@
         "xutility": "cpp",
         "memory": "cpp",
         "xmemory": "cpp",
-        "bmp180.h": "c"
+        "bmp180.h": "c",
+        "esp_tls.h": "c",
+        "array": "c",
+        "vector": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

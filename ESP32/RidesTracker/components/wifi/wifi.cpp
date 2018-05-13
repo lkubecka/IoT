@@ -25,13 +25,10 @@
 
 static const char* TAG = "Wi-Fi";
 
-#define WIFI_SSID "NAHATCH1"
-#define WIFI_PASS "nahatch123"
-
 std::vector<Configuration> connections = {  
-    Configuration("NATATCH", "nahatch123"),
+    Configuration("NAHATCH", "nahatch123"),
     Configuration("sde-guest", "4Our6uest"),
-    Configuration("NATATCH", "nahatch123")
+    Configuration("NAHATCH", "nahatch123")
 };
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
@@ -81,86 +78,29 @@ void connect_wifi(Configuration &connection)
     strncpy((char *)wifi_config.sta.ssid, connection.getSSID(), sizeof(wifi_config.sta.ssid));
     strncpy((char *)wifi_config.sta.password, connection.getPassword(), sizeof(wifi_config.sta.password));
 
-    ESP_LOGI(TAG, "Setting SSID %s...", wifi_config.sta.ssid);
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, 1000 / portTICK_PERIOD_MS);
-
-}
-
-
-void printNetworkInfo(void) {
-    tcpip_adapter_ip_info_t ip;
-    memset(&ip, 0, sizeof(tcpip_adapter_ip_info_t));
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-    if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip) == 0) {
-        ESP_LOGI(TAG, "~~~~~~~~~~~");
-        ESP_LOGI(TAG, "IP: %d.%d.%d.%d", IP2STR(&ip.ip));
-        ESP_LOGI(TAG, "MASK: %d.%d.%d.%d", IP2STR(&ip.netmask));
-        ESP_LOGI(TAG, "GW: %d.%d.%d.%d", IP2STR(&ip.gw));
-        ESP_LOGI(TAG, "~~~~~~~~~~~");
-        return;
-    }
-}
-
-
-void initialise_wifi(void)
-{
-    tcpip_adapter_init();
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-
-    ESP_LOGI(TAG, "Initialising");
-
-    // wifi_config_t wifi_config = {
-    //     .sta = {
-    //         .ssid = WIFI_SSID,
-    //         .password = WIFI_PASS
-    //     }
-    // };
-
-    wifi_config_t wifi_config;
-    wifi_config.sta.ssid[0] = 'N';
-    wifi_config.sta.ssid[1] = 'A';
-    wifi_config.sta.ssid[2] = 'H';
-    wifi_config.sta.ssid[3] = 'A';
-    wifi_config.sta.ssid[4] = 'T';
-    wifi_config.sta.ssid[5] = 'C';
-    wifi_config.sta.ssid[6] = 'H';
-    wifi_config.sta.ssid[7] = '\0';
-    
-    wifi_config.sta.password[0] = 'n';
-    wifi_config.sta.password[1] = 'a';
-    wifi_config.sta.password[2] = 'h';
-    wifi_config.sta.password[3] = 'a';
-    wifi_config.sta.password[4] = 't';
-    wifi_config.sta.password[5] = 'c';
-    wifi_config.sta.password[6] = 'h';
-    wifi_config.sta.password[7] = '1';
-    wifi_config.sta.password[8] = '2';
-    wifi_config.sta.password[9] = '3';
-    wifi_config.sta.password[10] = '\0';
-
     ESP_LOGI(TAG, "Setting SSID: %s and password: %s", wifi_config.sta.ssid, wifi_config.sta.password);
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK( esp_wifi_start() );
 
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, 1000 / portTICK_PERIOD_MS);
+}
 
-    if (network_is_alive()) {
-        ESP_LOGI(TAG, "Wifi connected");    
-        printNetworkInfo();
+
+void printNetworkInfo(void) {
+    tcpip_adapter_ip_info_t ip;
+    memset(&ip, 0, sizeof(tcpip_adapter_ip_info_t));
+
+    if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip) == 0) {
+        ESP_LOGI(TAG, "IP: %d.%d.%d.%d", IP2STR(&ip.ip));
+        ESP_LOGI(TAG, "MASK: %d.%d.%d.%d", IP2STR(&ip.netmask));
+        ESP_LOGI(TAG, "GW: %d.%d.%d.%d", IP2STR(&ip.gw));
+        return;
     }
 }
 
-void initialise_wifi2(void)
+
+void initialise_wifi(void)
 {
     setup_wifi();
     for (int i = 0; i < connections.size(); ++i) {
@@ -180,16 +120,13 @@ void initialise_wifi2(void)
    } 
 
     if (network_is_alive()) {
+        vTaskDelay(4000 / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "Wifi connected");
-        
         printNetworkInfo();
     } else {
         esp_wifi_deinit();
     }
- 
-
-
-}
+ }
 
 /**
 @brief Check if Wi-Fi connection is alive

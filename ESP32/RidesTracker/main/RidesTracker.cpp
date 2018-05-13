@@ -37,6 +37,7 @@
 #include "File.hpp"
 #include "altimeter.h"
 #include "wifi.hpp"
+#include "https.h"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -214,13 +215,26 @@ void app_main()
 	gpio_pulldown_en(BUTTON_PIN);
     gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
 
-    initialise_wifi();
+    
 
     while (1) {
 
             printf("GPIO[%d] val: %d\n", BUTTON_PIN, gpio_get_level(BUTTON_PIN));
             if ( gpio_get_level(BUTTON_PIN) == true) {
-                recordFile.deleteFile();
+                RevolutionsCounter.disable();
+				gpio_intr_disable(BUTTON_PIN);
+                gpio_set_level(LED_PIN, state = true);
+                
+                recordFile.printFile();
+                initialise_wifi();
+
+                xTaskCreate(&https_request_task, "https_request_task", 8192, NULL, 6, NULL);
+                //https_request_task(NULL);
+                //recordFile.deleteFile();
+                
+                gpio_set_level(LED_PIN, state = false);
+                gpio_intr_enable(BUTTON_PIN);
+                RevolutionsCounter.enable();
             }
 
             esp_log_write(ESP_LOG_INFO, TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
@@ -242,9 +256,9 @@ void app_main()
 			struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
 			esp_log_write(ESP_LOG_INFO, TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
             
-            if (kalfy::time::toMicroSecs(&delta) > (10*1000*1000)) {
-                recordFile.printFile();
-            }
+            // if (kalfy::time::toMicroSecs(&delta) > (10*1000*1000)) {
+            //     recordFile.printFile();
+            // }
 
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 RevolutionsCounter.disable();
@@ -254,7 +268,7 @@ void app_main()
 				goToSleep();
 			}
         
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(5000 / portTICK_RATE_MS);
     }
     
 }

@@ -1,0 +1,3 @@
+COMPONENT_ADD_INCLUDEDIRS := .
+COMPONENT_DEPENDS = esp-tls lwip nghttp
+COMPONENT_EMBED_TXTFILES := server_root_cert.pem

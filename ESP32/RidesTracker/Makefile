@@ -8,10 +8,12 @@ PROJECT_NAME := RidesTracker
 
 EXTRA_COMPONENT_DIRS := $(CURDIR)/components
 
-EXTRA_COMPONENTS := i2cdev bmp180 revolutions_counter utils preferences storage wifi http
+EXTRA_COMPONENTS := i2cdev bmp180 revolutions_counter utils preferences storage wifi https
 
 DEFAULT_COMPONENTS := \
-   esptool_py \
+    esptool_py \
+	esp-tls \
+	nghttp\
 	heap \
 	soc \
 	esp32 \
@@ -37,7 +39,8 @@ DEFAULT_COMPONENTS := \
 	console \
 	freertos \
 	ulp \
-	spiffs
+	spiffs \
+	
 
 
 COMPONENTS := $(DEFAULT_COMPONENTS) $(EXTRA_COMPONENTS)
