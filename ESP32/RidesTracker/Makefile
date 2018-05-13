@@ -8,7 +8,7 @@ PROJECT_NAME := RidesTracker
 
 EXTRA_COMPONENT_DIRS := $(CURDIR)/components
 
-EXTRA_COMPONENTS := i2cdev bmp180 revolutions_counter utils preferences storage
+EXTRA_COMPONENTS := i2cdev bmp180 revolutions_counter utils preferences storage wifi http
 
 DEFAULT_COMPONENTS := \
    esptool_py \

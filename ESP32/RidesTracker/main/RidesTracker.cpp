@@ -36,6 +36,7 @@
 #include "FileSystem.hpp"
 #include "File.hpp"
 #include "altimeter.h"
+#include "wifi.hpp"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -212,6 +213,8 @@ void app_main()
     gpio_pullup_dis(BUTTON_PIN);
 	gpio_pulldown_en(BUTTON_PIN);
     gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
+
+    initialise_wifi();
 
     while (1) {
 
