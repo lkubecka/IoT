@@ -29,15 +29,13 @@ void initAltimeter(void) {
     }
 }
 
-void getAltitude(void) {
-            float temp;
-            uint32_t pressure;
+void getAltitude(uint32_t *pressure) {
+    float temp;
+    esp_log_write(ESP_LOG_INFO, TAG, "Current core: %d\n", xPortGetCoreID());
 
-            esp_log_write(ESP_LOG_INFO, TAG, "Current core: %d\n", xPortGetCoreID());
-
-            res = bmp180_measure(&dev, &temp, &pressure, BMP180_MODE_STANDARD);
-            if (res != ESP_OK)
-                esp_log_write(ESP_LOG_ERROR, TAG, "Could not measure: %d\n", res);
-            else
-                esp_log_write(ESP_LOG_INFO, TAG, "Temperature: %.2f degrees Celsius; Pressure: %d MPa\n", temp, pressure);
+    res = bmp180_measure(&dev, &temp, pressure, BMP180_MODE_STANDARD);
+    if (res != ESP_OK)
+        esp_log_write(ESP_LOG_ERROR, TAG, "Could not measure: %d\n", res);
+    else
+        esp_log_write(ESP_LOG_INFO, TAG, "Temperature: %.2f degrees Celsius; Pressure: %d MPa\n", temp, *pressure);
 }

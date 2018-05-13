@@ -13,7 +13,7 @@ const gpio_num_t SCL_GPIO = GPIO_NUM_17;  //18
 
 
 void initAltimeter(void);
-void getAltitude(void); 
+void getAltitude(uint32_t *pressure);
 
 
 #ifdef __cplusplus

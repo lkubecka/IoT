@@ -33,11 +33,15 @@
 #include "revolutions_counter.hpp"
 #include "Preferences.hpp"
 #include "time.hpp"
-#include "FileSystem.hpp"
-#include "File.hpp"
 #include "altimeter.h"
 #include "wifi.hpp"
 #include "https.h"
+
+#include "Arduino.h"
+#include <HTTPClient.h>
+#include "record.hpp"
+#include "time.hpp"
+//#include "ble.hpp"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -55,22 +59,29 @@ static struct timeval lastActivityTime = { 0UL, 0UL };
 const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1 minute IDLE
 volatile uint8_t state = 0x00;
 Preferences preferences;
+static uint32_t presure = 0;
+
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
+
+SemaphoreHandle_t xSemaphore = NULL;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void goToSleep(void) {
-    esp_log_write(ESP_LOG_INFO, TAG, "Going to sleep\n");
-    esp_log_write(ESP_LOG_INFO, TAG, "Enabling timer wakeup, %ds\n", WAKE_UP_TIME_SEC);
+    ESP_LOGI( TAG, "Going to sleep\n");
+    ESP_LOGI( TAG, "Enabling timer wakeup, %ds\n", WAKE_UP_TIME_SEC);
     esp_sleep_enable_timer_wakeup(WAKE_UP_TIME_SEC * 1000000);
 
     const uint64_t ext_wakeup_pin_1_mask = 1ULL << REED_PIN;
     const uint64_t ext_wakeup_pin_2_mask = 1ULL << BUTTON_PIN;
 
 
-    esp_log_write(ESP_LOG_INFO, TAG, "Enabling EXT1 wakeup on pins GPIO%d\n", REED_PIN);
-    esp_log_write(ESP_LOG_INFO, TAG, "Enabling EXT1 wakeup on pins GPIO%d\n", BUTTON_PIN);
+    ESP_LOGI( TAG, "Enabling EXT1 wakeup on pins GPIO%d\n", REED_PIN);
+    ESP_LOGI( TAG, "Enabling EXT1 wakeup on pins GPIO%d\n", BUTTON_PIN);
     esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_1_mask | ext_wakeup_pin_2_mask , ESP_EXT1_WAKEUP_ANY_HIGH);
 
     gpio_pullup_dis(REED_PIN);
@@ -84,7 +95,7 @@ void goToSleep(void) {
     // to minimize current consumption.
     rtc_gpio_isolate(GPIO_NUM_12);
 
-    esp_log_write(ESP_LOG_INFO, TAG, "Entering deep sleep\n");
+    ESP_LOGI( TAG, "Entering deep sleep\n");
     gettimeofday(&sleep_enter_time, NULL);
 
 	preferences.begin("RidezTracker", false);
@@ -100,30 +111,69 @@ void setLastKnownTime() {
     preferences.begin("RidezTracker", false);
 	unsigned int resetTimes = preferences.getUInt("resetTimes", 0);
 	resetTimes++;
-	esp_log_write(ESP_LOG_INFO, TAG, "Number of restart times: %d\n", resetTimes);
+	ESP_LOGI( TAG, "Number of restart times: %d\n", resetTimes);
 	preferences.putUInt("resetTimes", resetTimes);
 
     struct timeval now = kalfy::time::getCurrentTime();
     struct timeval delta = kalfy::time::sub(&now, &sleep_enter_time);
-    esp_log_write(ESP_LOG_INFO, TAG, "Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
+    ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
     
     time_t t = time(NULL);
-    esp_log_write(ESP_LOG_INFO, TAG, "Current date/time: %s", ctime(&t));
+    ESP_LOGI(TAG, "Current date/time: %s", ctime(&t));
 	if (now.tv_sec < 10000) {
 		
 		preferences.getBytes("time_when_sleep", &now, sizeof(now));
-		esp_log_write(ESP_LOG_INFO, TAG, "Time lost, loading last known time: %ld\n", now.tv_sec);
+		ESP_LOGI( TAG, "Time lost, loading last known time: %ld\n", now.tv_sec);
 		struct timezone tz;
 		tz.tz_minuteswest = TIMEZONE_DIFF_GMT_PRAGUE_MINS;
 		tz.tz_dsttime = DAYLIGHT_SAVING_MINS;
 		settimeofday(&now, &tz);
 		t = time(NULL);
-		esp_log_write(ESP_LOG_INFO, TAG, "Current date/time: %s", ctime(&t));
+		ESP_LOGI( TAG, "Current date/time: %s", ctime(&t));
 	}
 
 	preferences.end();
 
     lastActivityTime = kalfy::time::getCurrentTime();
+}
+
+void uploadTask(void *pvParameter)
+{
+    if( xSemaphore != NULL )
+    {
+
+        // block main task to prevent going to sleep
+        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+        {
+            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
+
+            kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+
+            vTaskDelay(2000 / portTICK_RATE_MS);
+            xSemaphoreGive( xSemaphore );
+        }
+    } 
+
+    vTaskDelete(NULL);   
+}
+
+void onDemandWakeUp(void) {
+
+    // Serial.println("=== sendData called");
+    // kalfy::ble::run();
+    // Serial.println("sendData done");
+    // btStop();
+    
+    // goToSleep();
+}
+
+void periodicWakeUp(void) {
+    vSemaphoreCreateBinary( xSemaphore );
+
+    kalfy::record::printAll();
+    initialise_wifi();
+    xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
+    
 }
 
 void selectStartupMode(void) {
@@ -141,6 +191,7 @@ void selectStartupMode(void) {
         }
         case ESP_SLEEP_WAKEUP_TIMER: {
             printf("--- Wake up from timer.\n");
+            periodicWakeUp();
             break;
         }
         default: {
@@ -159,19 +210,16 @@ void saveRotationTask(void *pvParameter)
 		return;
 	}
 
-    File recordFile("/spiffs/records.txt");
-    
 	while (1) {
 		xStatus = xQueueReceive(counterEventQueue, &msg, 0);
 		if (xStatus == pdPASS) {
-            esp_log_write(ESP_LOG_INFO, TAG, "t%lu|%lu\n", (time_t)msg.time.tv_sec, (suseconds_t)msg.time.tv_usec);
+            ESP_LOGI( TAG, "t%lu|%lu\n", (time_t)msg.time.tv_sec, (suseconds_t)msg.time.tv_usec);
 	        gpio_set_level(LED_PIN, state = !state);
 
             char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
-            recordFile.appendToFile(buffer);
-			//kalfy::record::saveRevolution(msg.time);	
-			//kalfy::record::savePressure(presure);
+			kalfy::record::saveRevolution(msg.time);	
+			kalfy::record::savePressure(presure);
 
             lastActivityTime = msg.time;
 		}
@@ -180,95 +228,100 @@ void saveRotationTask(void *pvParameter)
 	}
 }
 
+
+
 void app_main()
 {
+    Serial.begin(115200);
 
+    initArduino();
     nvs_flash_init();
-
-    FileSystem fileSystem;
-    fileSystem.begin();
-    fileSystem.info();
-
-
     setLastKnownTime();
-
     selectStartupMode();
     
     RevolutionsCounter RevolutionsCounter(REED_PIN); 
-
-    xTaskCreate(
-		saveRotationTask,       /* Task function. */
-		"ReedConsumer",         /* String with name of task. */
-		4096,                   /* Stack size in words. */
-		NULL,                   /* Parameter passed as input of the task */
-		10,                     /* Priority of the task. */
-		NULL);                  /* Task handle. */
-
-    //xTaskCreatePinnedToCore(bmp180_test, "bmp180_test", configMINIMAL_STACK_SIZE * 15, NULL, 5, NULL, APP_CPU_NUM);
-   // xTaskCreate(bmp180_test, "bmp180_test", configMINIMAL_STACK_SIZE * 15, NULL, 5, NULL);
-
-    // first time update of reference pressure
-    File recordFile("/spiffs/records.txt");
-
+    xTaskCreate(saveRotationTask, "saveRotationTask", 4096, NULL, 10, NULL);  
 
     gpio_pullup_dis(BUTTON_PIN);
 	gpio_pulldown_en(BUTTON_PIN);
     gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
 
-    
+    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
+
+    unsigned long printTime = 0;
 
     while (1) {
 
-            printf("GPIO[%d] val: %d\n", BUTTON_PIN, gpio_get_level(BUTTON_PIN));
+            
             if ( gpio_get_level(BUTTON_PIN) == true) {
                 RevolutionsCounter.disable();
 				gpio_intr_disable(BUTTON_PIN);
                 gpio_set_level(LED_PIN, state = true);
-                
-                recordFile.printFile();
-                initialise_wifi();
+                vSemaphoreCreateBinary( xSemaphore );
 
-                xTaskCreate(&https_request_task, "https_request_task", 8192, NULL, 6, NULL);
-                //https_request_task(NULL);
-                //recordFile.deleteFile();
-                
-                gpio_set_level(LED_PIN, state = false);
-                gpio_intr_enable(BUTTON_PIN);
-                RevolutionsCounter.enable();
+                kalfy::record::printAll();
+
+                initialise_wifi();
+                xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
             }
 
-            esp_log_write(ESP_LOG_INFO, TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
-            
-            initAltimeter();
-            getAltitude();
+             // only go to sleep if not uploading 
+            if( xSemaphore != NULL )
+            {
+                // See if we can obtain the semaphore.  If the semaphore is not available
+                // wait 10 ticks to see if it becomes free.
+                if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+                {
+                    gpio_set_level(LED_PIN, state = false);
+                    gpio_intr_enable(BUTTON_PIN);
+                    RevolutionsCounter.enable();    
+                    xSemaphoreGive( xSemaphore );
+                    vSemaphoreDelete(xSemaphore);
+                    
+                }
+                else
+                {
+                    lastActivityTime = kalfy::time::getCurrentTime();
+                }
+            } 
 
-            adc1_config_width(ADC_WIDTH_BIT_12);
-            adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
-            int val = adc1_get_raw(ADC_CHANNEL);    
 
-            esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %dV\n", val);
-            esp_log_write(ESP_LOG_INFO, TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*val/4096);
-           
-
-			esp_log_write(ESP_LOG_INFO, TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
-			
             struct timeval now = kalfy::time::getCurrentTime();
-			struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
-			esp_log_write(ESP_LOG_INFO, TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
+            struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
+
+            if (millis() - printTime > 5000 ) {
+                printTime = millis();
+
+                printf("GPIO[%d] val: %d\n", BUTTON_PIN, gpio_get_level(BUTTON_PIN));
+
+                ESP_LOGI( TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
+                
+                initAltimeter();
+                getAltitude(&presure);
+
+                adc1_config_width(ADC_WIDTH_BIT_12);
+                adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
+                int val = adc1_get_raw(ADC_CHANNEL);    
+
+                ESP_LOGI( TAG, "Battery voltage %dV\n", val);
+                ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*val/4096);
             
-            // if (kalfy::time::toMicroSecs(&delta) > (10*1000*1000)) {
-            //     recordFile.printFile();
-            // }
+
+                ESP_LOGI(TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+                ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
+            }
+
+
 
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 RevolutionsCounter.disable();
+                gpio_intr_disable(BUTTON_PIN);
+                goToSleep();
+             }
 
-				gpio_intr_disable(BUTTON_PIN);
-                fileSystem.end();
-				goToSleep();
-			}
+
         
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_RATE_MS);
     }
     
 }
