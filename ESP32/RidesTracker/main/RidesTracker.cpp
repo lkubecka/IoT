@@ -60,6 +60,7 @@ const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1 minute IDLE
 volatile uint8_t state = 0x00;
 Preferences preferences;
 static uint32_t presure = 0;
+static int batteryVoltage = 0;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
@@ -116,10 +117,10 @@ void setLastKnownTime() {
 
     struct timeval now = kalfy::time::getCurrentTime();
     struct timeval delta = kalfy::time::sub(&now, &sleep_enter_time);
-    ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
+    printf("Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
     
     time_t t = time(NULL);
-    ESP_LOGI(TAG, "Current date/time: %s", ctime(&t));
+    printf("Current date/time: %s", ctime(&t));
 	if (now.tv_sec < 10000) {
 		
 		preferences.getBytes("time_when_sleep", &now, sizeof(now));
@@ -157,47 +158,81 @@ void uploadTask(void *pvParameter)
     vTaskDelete(NULL);   
 }
 
-void onDemandWakeUp(void) {
+void uploadTestTask(void *pvParameter)
+{
+    if( xSemaphore != NULL )
+    {
 
-    // Serial.println("=== sendData called");
-    // kalfy::ble::run();
-    // Serial.println("sendData done");
-    // btStop();
-    
-    // goToSleep();
+        // block main task to prevent going to sleep
+        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+        {
+            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
+
+            kalfy::record::uploadTest(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+
+            vTaskDelay(2000 / portTICK_RATE_MS);
+            xSemaphoreGive( xSemaphore );
+        }
+    } 
+
+    vTaskDelete(NULL);   
 }
 
-void periodicWakeUp(void) {
+void onDemandTask(void) {
     vSemaphoreCreateBinary( xSemaphore );
-
-    kalfy::record::printAll();
     initialise_wifi();
-    xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
-    
+    xTaskCreate(&uploadTestTask, "uploadTestTask", 8192, NULL, 6, NULL);
 }
 
-void selectStartupMode(void) {
+void periodicTask(void) {
+  //  Serial.println("=== sendData called");
+  //  kalfy::ble::run();
+  //  Serial.println("sendData done");
+  //  btStop();
+    
+    goToSleep();
+}
 
-    switch (esp_sleep_get_wakeup_cause()) {
-        case ESP_SLEEP_WAKEUP_EXT1: {
-            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
-            if (wakeup_pin_mask != 0) {
-                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-                printf("--- Wake up from GPIO %d\n", pin);
-            } else {
-                printf("--- Wake up from GPIO\n");
-            }
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_TIMER: {
-            printf("--- Wake up from timer.\n");
-            periodicWakeUp();
-            break;
-        }
-        default: {
-            printf("--- Not a deep sleep restart!\n");
-        }
-    }
+
+
+void getBatteryVoltage(int *batteryVoltage) {
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
+    *batteryVoltage = adc1_get_raw(ADC_CHANNEL);   
+}
+
+class Notifier {
+    private:
+        gpio_num_t _pin;
+        bool _state;
+    public:
+        Notifier(gpio_num_t pin): _pin(pin) {_state = false; }
+        void enable(void) { gpio_set_direction(_pin, GPIO_MODE_OUTPUT); } 
+        void disable(void) { rtc_gpio_isolate(_pin); } 
+        void setLow(void) { gpio_set_level(_pin, _state = false); }
+        void setHigh(void) { gpio_set_level(_pin, _state = true); }
+        void toggle(void) { gpio_set_level(_pin, _state = !_state); }
+};
+
+class Button {
+    private:
+        gpio_num_t _pin;
+    public:
+        Button(gpio_num_t pin): _pin(pin) {     
+            gpio_pullup_dis(_pin);
+	        gpio_pulldown_en(_pin);
+            gpio_set_direction(_pin, GPIO_MODE_INPUT);
+        };
+        void enable(void) { gpio_set_direction(_pin, GPIO_MODE_OUTPUT); } 
+        void disable(void) { rtc_gpio_isolate(_pin); } 
+        int getValue(void) { return gpio_get_level(_pin); }
+};
+
+void printStatus(const RevolutionsCounter &revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
+    ESP_LOGI( TAG, "Number of revolutions %d\n", revolutionsCounter.getNumberOfRevolutions());
+    ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*batteryVoltage/4096);
+    ESP_LOGI(TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+    ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
 void saveRotationTask(void *pvParameter)
@@ -229,34 +264,20 @@ void saveRotationTask(void *pvParameter)
 }
 
 
-
-void app_main()
-{
-    Serial.begin(115200);
-
-    initArduino();
-    nvs_flash_init();
-    setLastKnownTime();
-    selectStartupMode();
-    
-    RevolutionsCounter RevolutionsCounter(REED_PIN); 
+void reedTask(void) {
+    RevolutionsCounter revolutionsCounter(REED_PIN); 
     xTaskCreate(saveRotationTask, "saveRotationTask", 4096, NULL, 10, NULL);  
 
-    gpio_pullup_dis(BUTTON_PIN);
-	gpio_pulldown_en(BUTTON_PIN);
-    gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
-
-    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
+    Button button(BUTTON_PIN);
+    Notifier notifier(LED_PIN);
 
     unsigned long printTime = 0;
 
     while (1) {
 
-            
-            if ( gpio_get_level(BUTTON_PIN) == true) {
-                RevolutionsCounter.disable();
-				gpio_intr_disable(BUTTON_PIN);
-                gpio_set_level(LED_PIN, state = true);
+            if ( button.getValue() == true) {
+                notifier.setHigh();
+                revolutionsCounter.disable();
                 vSemaphoreCreateBinary( xSemaphore );
 
                 kalfy::record::printAll();
@@ -265,19 +286,15 @@ void app_main()
                 xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
             }
 
-             // only go to sleep if not uploading 
             if( xSemaphore != NULL )
             {
-                // See if we can obtain the semaphore.  If the semaphore is not available
-                // wait 10 ticks to see if it becomes free.
+                // See if we can obtain the semaphore.  If the semaphore is not available wait 10 ticks to see if it becomes free.
                 if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
                 {
-                    gpio_set_level(LED_PIN, state = false);
-                    gpio_intr_enable(BUTTON_PIN);
-                    RevolutionsCounter.enable();    
+                    notifier.setLow();
+                    revolutionsCounter.enable();    
                     xSemaphoreGive( xSemaphore );
                     vSemaphoreDelete(xSemaphore);
-                    
                 }
                 else
                 {
@@ -285,37 +302,20 @@ void app_main()
                 }
             } 
 
-
             struct timeval now = kalfy::time::getCurrentTime();
             struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
-
+           
             if (millis() - printTime > 5000 ) {
                 printTime = millis();
 
-                printf("GPIO[%d] val: %d\n", BUTTON_PIN, gpio_get_level(BUTTON_PIN));
-
-                ESP_LOGI( TAG, "Number of revolutions %d\n", RevolutionsCounter.getNumberOfRevolutions());
-                
                 initAltimeter();
                 getAltitude(&presure);
-
-                adc1_config_width(ADC_WIDTH_BIT_12);
-                adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
-                int val = adc1_get_raw(ADC_CHANNEL);    
-
-                ESP_LOGI( TAG, "Battery voltage %dV\n", val);
-                ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*val/4096);
-            
-
-                ESP_LOGI(TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
-                ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
+                getBatteryVoltage(&batteryVoltage);
+                printStatus(revolutionsCounter, batteryVoltage, lastActivityTime, delta); 
             }
 
-
-
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
-                RevolutionsCounter.disable();
-                gpio_intr_disable(BUTTON_PIN);
+                revolutionsCounter.disable();
                 goToSleep();
              }
 
@@ -323,7 +323,61 @@ void app_main()
         
         vTaskDelay(100 / portTICK_RATE_MS);
     }
-    
+
+}
+
+void defaultTask(void) {
+    reedTask();
+}
+
+
+void executeStartupMode(void) {
+
+    switch (esp_sleep_get_wakeup_cause()) {
+        case ESP_SLEEP_WAKEUP_EXT1: {
+            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
+            if (wakeup_pin_mask != 0) {
+                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+                printf("--- Wake up from GPIO %d\n", pin);
+                switch (pin) {
+                    case BUTTON_PIN: {
+                        onDemandTask();
+                        break; 
+                    }
+                    case REED_PIN: {
+                       reedTask(); 
+                       break; 
+                    }           
+                    default: {
+                        defaultTask();
+                    }    
+                }    
+            } else {
+                printf("--- Wake up from GPIO\n");
+                defaultTask();
+            }
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_TIMER: {
+            printf("--- Wake up from timer.\n");
+            periodicTask();
+            break;
+        }
+        default: {
+            printf("--- Not a deep sleep restart!\n");
+            defaultTask();
+        }
+    }
+}
+
+void app_main()
+{
+    Serial.begin(115200);
+
+    initArduino();
+    nvs_flash_init();
+    setLastKnownTime();
+    executeStartupMode();    
 }
 
 

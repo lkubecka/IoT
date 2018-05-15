@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include "record.hpp"
 #include "files.hpp"
+#include "time.hpp"
 
 #ifdef ARDUINO_ARCH_ESP32
 #include "esp32-hal-log.h"
@@ -50,13 +51,13 @@ const char* ODOCYCLE_CERT = \
 "ujxS43/jQPQMQSBmhxjaMmng9tyPKPK9\n" \
 "-----END CERTIFICATE-----\n";
 
-
+#define TAG "record"
 
 namespace kalfy
 {
 	namespace record
 	{
-		static const char* TAG = "record";
+		
 		const char* DESTINATION_FILE = "/records.txt";
 
 		void saveRevolution(timeval &now)
@@ -164,6 +165,63 @@ namespace kalfy
 		}
 		void clear() {
 			kalfy::files::deleteFile(DESTINATION_FILE);
+		}
+
+		
+		void uploadTest(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert)
+		{
+			const char* TEST_FILE = "/test.txt";
+			const int32_t presure = 101250; 
+			struct timeval now = kalfy::time::getCurrentTime();
+
+			kalfy::files::openFileForUpload(TEST_FILE);
+			saveRevolution(now);
+			savePressure(presure);
+			now = kalfy::time::getCurrentTime();
+			saveRevolution(now);
+			savePressure(presure);
+
+
+
+			ESP_LOGI(TAG, "=== uploadAll called");
+			if (apiUrl == nullptr || deviceId == nullptr)
+			{
+				ESP_LOGI(TAG,"Some of the arguments is null!");
+				return;
+			}
+
+			File file = kalfy::files::openFileForUpload(TEST_FILE);
+			if (!file || file.size() == 0)
+			{
+				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file
+				ESP_LOGI(TAG, "=== Nothing to send");
+				return;
+			}
+
+			HTTPClient http;
+			http.begin(String(apiUrl) + deviceId, ca_cert);
+			http.addHeader("Authorization", "Bearer " + String(token));
+			http.addHeader("Content-Type", "application/form-data");
+			int httpResponseCode = http.sendRequest("POST", &file, file.size());
+			if (httpResponseCode == 201)
+			{
+				ESP_LOGI(TAG, "== Data sent successfully");
+				kalfy::files::uploadSucceeded(file, TEST_FILE);
+			}
+			else
+			{
+
+				ESP_LOGI(TAG, "== Sending to server failed");
+				String response = http.getString();
+				ESP_LOGI(TAG, "HTTP response code:");
+				ESP_LOGI(TAG, "%d", httpResponseCode);
+				ESP_LOGI(TAG, "HTTP response body:");
+				ESP_LOGI(TAG, "%s", response);
+
+				kalfy::files::uploadFailed(file);
+			}
+			http.end();
+			ESP_LOGI(TAG, "== Upload complete");
 		}
 	}
 
