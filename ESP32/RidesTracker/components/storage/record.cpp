@@ -51,13 +51,12 @@ const char* ODOCYCLE_CERT = \
 "ujxS43/jQPQMQSBmhxjaMmng9tyPKPK9\n" \
 "-----END CERTIFICATE-----\n";
 
-#define TAG "record"
-
 namespace kalfy
 {
 	namespace record
 	{
-		
+		static const char* TAG = "record";
+
 		const char* DESTINATION_FILE = "/records.txt";
 
 		void saveRevolution(timeval &now)

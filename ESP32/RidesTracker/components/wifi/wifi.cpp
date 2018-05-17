@@ -17,11 +17,14 @@
 
 #include "esp_event_loop.h"
 #include "esp_wifi.h"
+#include "nvs_flash.h"
 
 #include "wifi.hpp"
 #include "Configuration.hpp"
 #include <vector>
 #include "string.h"
+
+#if 0
 
 static const char* TAG = "Wi-Fi";
 
@@ -62,6 +65,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 }
 
 void setup_wifi(void) {
+    nvs_flash_init();
     tcpip_adapter_init();
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
@@ -145,3 +149,5 @@ bool network_is_alive(void)
         return false;
     }
 }
+
+#endif

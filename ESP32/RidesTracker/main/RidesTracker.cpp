@@ -34,14 +34,19 @@
 #include "Preferences.hpp"
 #include "time.hpp"
 #include "altimeter.h"
-#include "wifi.hpp"
+//#include "wifi.hpp"
 #include "https.h"
 
 #include "Arduino.h"
 #include <HTTPClient.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include "record.hpp"
 #include "time.hpp"
-//#include "ble.hpp"
+#include "bluetooth.hpp"
+
+#define WLAN_SSID       "NAHATCH"
+#define WLAN_PASS       "nahatch123"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -65,6 +70,8 @@ static int batteryVoltage = 0;
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
+
+const int MAX_WIFI_CONNECTION_ATTEMPTS = 3;
 
 SemaphoreHandle_t xSemaphore = NULL;
 
@@ -138,6 +145,69 @@ void setLastKnownTime() {
     lastActivityTime = kalfy::time::getCurrentTime();
 }
 
+void scanWiFi() {
+	// WiFi.scanNetworks will return the number of networks found
+	int n = WiFi.scanNetworks();
+	Serial.println("scan done");
+	if (n == 0) {
+		Serial.println("no networks found");
+	}
+	else {
+		Serial.print(n);
+		Serial.println(" networks found");
+		for (int i = 0; i < n; ++i) {
+			// Print SSID and RSSI for each network found
+			Serial.print(i + 1);
+			Serial.print(": ");
+			Serial.print(WiFi.SSID(i));
+			Serial.print(" (");
+			Serial.print(WiFi.RSSI(i));
+			Serial.print(")");
+			Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
+			delay(10);
+		}
+	}
+	Serial.println("");
+}
+
+wl_status_t connectWiFi() {
+	// Connect to WiFi access point.
+	Serial.println();
+	Serial.println();
+	
+	Serial.print("Connecting to ");
+	Serial.println(WLAN_SSID);
+
+    //WiFi.mode(WIFI_OFF);
+    delay(2000);
+	Serial.println("Connecting Wifi ");
+	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
+  
+		//WiFi.disconnect(true);                                      // Clear Wifi Credentials
+        //WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
+        WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
+    
+		WiFi.begin(WLAN_SSID, WLAN_PASS);
+		if (WiFi.status() == WL_CONNECTED) {
+			Serial.println("");
+			Serial.print("WiFi connected ");
+			Serial.print("IP address: ");
+			Serial.println(WiFi.localIP());
+			break;
+		}
+		else {
+			Serial.print("WiFi connection attempt: ");
+			Serial.println(loops);
+			
+		}
+		vTaskDelay(10000 / portTICK_PERIOD_MS);
+		//delay(10000);
+	}
+
+
+	return WiFi.status();
+}
+
 void uploadTask(void *pvParameter)
 {
     if( xSemaphore != NULL )
@@ -178,20 +248,30 @@ void uploadTestTask(void *pvParameter)
     vTaskDelete(NULL);   
 }
 
-void onDemandTask(void) {
-    vSemaphoreCreateBinary( xSemaphore );
-    initialise_wifi();
-    xTaskCreate(&uploadTestTask, "uploadTestTask", 8192, NULL, 6, NULL);
-}
-
 void periodicTask(void) {
-  //  Serial.println("=== sendData called");
-  //  kalfy::ble::run();
-  //  Serial.println("sendData done");
+   Serial.println("=== sendData called");
+    kalfy::ble::run();
+   Serial.println("sendData done");
   //  btStop();
     
     goToSleep();
 }
+
+void onDemandTask(void) {
+
+periodicTask();
+   // connectWiFi();
+	// kalfy::record::uploadTest(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+	// Serial.println("sendData done");
+	// WiFi.disconnect(true);
+    // goToSleep();
+
+    // vSemaphoreCreateBinary( xSemaphore );
+    // initialise_wifi();
+    // xTaskCreate(&uploadTestTask, "uploadTestTask", 8192, NULL, 6, NULL);
+}
+
+
 
 
 
@@ -229,7 +309,7 @@ class Button {
 };
 
 void printStatus(const RevolutionsCounter &revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
-    ESP_LOGI( TAG, "Number of revolutions %d\n", revolutionsCounter.getNumberOfRevolutions());
+   // ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*batteryVoltage/4096);
     ESP_LOGI(TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
     ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
@@ -282,8 +362,8 @@ void reedTask(void) {
 
                 kalfy::record::printAll();
 
-                initialise_wifi();
-                xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
+              //  initialise_wifi();
+              //  xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
             }
 
             if( xSemaphore != NULL )

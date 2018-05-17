@@ -1,6 +1,5 @@
 {
-    "configurations": [
-        {
+    "configurations": [{
             "name": "Mac",
             "includePath": [
                 "/usr/include",
@@ -56,6 +55,14 @@
                 "${workspaceFolder}/components/storage",
                 "${workspaceFolder}/components/wifi",
                 "${workspaceFolder}/components/https",
+                "${workspaceFolder}/components/arduino/libraries/BLE/src",
+                "${workspaceFolder}/components/arduino/libraries/HTTPClient/src",
+                "${workspaceFolder}/components/arduino/libraries/FS/src",
+                "${workspaceFolder}/components/arduino/libraries/SPIFFS/src",
+                "${workspaceFolder}/components/arduino/libraries/Wifi/src",
+                "${workspaceFolder}/components/arduino/libraries/WiFiClientSecure/src",
+                "${workspaceFolder}/components/arduino/cores/esp32",
+                "${workspaceFolder}/components/arduino/variants/esp32",
                 "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
@@ -98,6 +105,14 @@
                     "${workspaceFolder}/components/storage",
                     "${workspaceFolder}/components/wifi",
                     "${workspaceFolder}/components/https",
+                    "${workspaceFolder}/components/arduino/libraries/BLE/src",
+                    "${workspaceFolder}/components/arduino/libraries/HTTPClient/src",
+                    "${workspaceFolder}/components/arduino/libraries/FS/src",
+                    "${workspaceFolder}/components/arduino/libraries/SPIFFS/src",
+                    "${workspaceFolder}/components/arduino/libraries/Wifi/src",
+                    "${workspaceFolder}/components/arduino/libraries/WiFiClientSecure/src",
+                    "${workspaceFolder}/components/arduino/cores/esp32",
+                    "${workspaceFolder}/components/arduino/variants/esp32",
                     "c:/msys32/home/Libor/esp/esp-idf/components/log/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/freertos/include",
