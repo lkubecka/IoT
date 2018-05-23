@@ -30,7 +30,7 @@ class RevolutionsCounter {
 
 		RevolutionsCounter(gpio_num_t reedPin);
 		~RevolutionsCounter();
-		int16_t getNumberOfRevolutions(void);
+		int16_t getNumberOfRevolutions(void) const;
 		void disable(void);
 		void enable(void);
 };

@@ -56,10 +56,10 @@ RevolutionsCounter::~RevolutionsCounter()
 {
 }
 
-int16_t RevolutionsCounter::getNumberOfRevolutions(void) {
+int16_t RevolutionsCounter::getNumberOfRevolutions(void) const {
 	int16_t pcntCntr = 0;
 	if (pcnt_get_counter_value(_pcntUnit, &pcntCntr) != ESP_OK) {
-		esp_log_write(ESP_LOG_ERROR, TAG, "Cannot read PCNT");
+		esp_log_write(ESP_LOG_ERROR, TAG, "Cannot read PCNT\n");
 	}
 	return pcntCntr;
 }	
@@ -67,13 +67,13 @@ int16_t RevolutionsCounter::getNumberOfRevolutions(void) {
 void RevolutionsCounter::disable(void) {
 	pcnt_counter_pause(_pcntUnit);
 	pcnt_intr_disable(_pcntUnit);
-	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter stopped.");
+	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter stopped.\n");
 }
 
 void RevolutionsCounter::enable(void) {
 	pcnt_intr_enable(_pcntUnit);
 	pcnt_counter_resume(_pcntUnit);
-	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter started.");
+	esp_log_write(ESP_LOG_INFO, TAG, "Revolution counter started.\n");
 }
 
 void RevolutionsCounter::_initPcnt(void)

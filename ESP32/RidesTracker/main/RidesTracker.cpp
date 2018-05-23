@@ -71,6 +71,17 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
+
+enum upload_status_t {
+    IDLE,
+    STARTED,
+    RUNNING,
+    FINISHED
+}
+
+upload_status = IDLE;
+
+
 const int MAX_WIFI_CONNECTION_ATTEMPTS = 3;
 
 SemaphoreHandle_t xSemaphore = NULL;
@@ -78,6 +89,16 @@ SemaphoreHandle_t xSemaphore = NULL;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void printLocalTime()
+{
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+}
 
 void goToSleep(void) {
     ESP_LOGI( TAG, "Going to sleep\n");
@@ -238,7 +259,7 @@ void uploadTestTask(void *pvParameter)
         {
             configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
 
-            kalfy::record::uploadTest(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+            kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::DESTINATION_FILE);
 
             vTaskDelay(2000 / portTICK_RATE_MS);
             xSemaphoreGive( xSemaphore );
@@ -249,23 +270,28 @@ void uploadTestTask(void *pvParameter)
 }
 
 void periodicTask(void) {
-   Serial.println("=== sendData called");
+    Serial.println("=== sendData called");
     kalfy::ble::run();
-   Serial.println("sendData done");
-  //  btStop();
+    Serial.println("sendData done");
+
     
     goToSleep();
 }
 
-void onDemandTask(void) {
+void onDemandTask(void *pvParameter) {
 
-periodicTask();
-   // connectWiFi();
-	// kalfy::record::uploadTest(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
-	// Serial.println("sendData done");
-	// WiFi.disconnect(true);
-    // goToSleep();
+    connectWiFi();
+    vTaskDelay(2000 / portTICK_RATE_MS);
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+	printLocalTime();
 
+    kalfy::record::createTestFile(kalfy::record::TEST_FILE);
+	kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
+	Serial.println("sendData done");
+	WiFi.disconnect(true);
+    upload_status = FINISHED;
+
+    vTaskDelete(NULL);  
     // vSemaphoreCreateBinary( xSemaphore );
     // initialise_wifi();
     // xTaskCreate(&uploadTestTask, "uploadTestTask", 8192, NULL, 6, NULL);
@@ -308,10 +334,10 @@ class Button {
         int getValue(void) { return gpio_get_level(_pin); }
 };
 
-void printStatus(const RevolutionsCounter &revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
-   // ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
+void printStatus(const RevolutionsCounter & revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
+    ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*batteryVoltage/4096);
-    ESP_LOGI(TAG, "\n\nLast activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+    ESP_LOGI(TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
     ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
@@ -333,10 +359,13 @@ void saveRotationTask(void *pvParameter)
 
             char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
-			kalfy::record::saveRevolution(msg.time);	
-			kalfy::record::savePressure(presure);
+			kalfy::record::saveRevolution(msg.time, kalfy::record::DESTINATION_FILE);	
+			kalfy::record::savePressure(presure, kalfy::record::DESTINATION_FILE);
 
             lastActivityTime = msg.time;
+
+            Notifier * notifier = static_cast<Notifier *>(pvParameter);
+            notifier->toggle();
 		}
 
 	    vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
@@ -346,41 +375,48 @@ void saveRotationTask(void *pvParameter)
 
 void reedTask(void) {
     RevolutionsCounter revolutionsCounter(REED_PIN); 
-    xTaskCreate(saveRotationTask, "saveRotationTask", 4096, NULL, 10, NULL);  
-
     Button button(BUTTON_PIN);
     Notifier notifier(LED_PIN);
 
+    xTaskCreate(saveRotationTask, "saveRotationTask", 4096, &notifier, 10, NULL);  
     unsigned long printTime = 0;
 
     while (1) {
 
-            if ( button.getValue() == true) {
-                notifier.setHigh();
-                revolutionsCounter.disable();
-                vSemaphoreCreateBinary( xSemaphore );
-
-                kalfy::record::printAll();
-
-              //  initialise_wifi();
-              //  xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
+            if ( upload_status == IDLE && button.getValue() == true) {
+                //kalfy::record::clear(kalfy::record::DESTINATION_FILE);
+                kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
+                
+                upload_status = STARTED;
             }
 
-            if( xSemaphore != NULL )
-            {
-                // See if we can obtain the semaphore.  If the semaphore is not available wait 10 ticks to see if it becomes free.
-                if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-                {
-                    notifier.setLow();
-                    revolutionsCounter.enable();    
-                    xSemaphoreGive( xSemaphore );
-                    vSemaphoreDelete(xSemaphore);
+            switch (upload_status) {
+                case STARTED: {
+                    notifier.setHigh();
+                    revolutionsCounter.disable();
+                    xTaskCreate(&onDemandTask, "onDemand", 8192, NULL, 6, NULL);
+                    upload_status = RUNNING;
+                    break;
                 }
-                else
-                {
+                case RUNNING: {
                     lastActivityTime = kalfy::time::getCurrentTime();
+                    break;
                 }
-            } 
+                case FINISHED: {
+                    notifier.setLow();
+                    revolutionsCounter.enable(); 
+                    upload_status = IDLE;
+                    break;
+                }
+                default: {;}
+            }
+                
+                
+               // kalfy::record::printAll();
+    
+              //  initialise_wifi();
+              //  xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
+            
 
             struct timeval now = kalfy::time::getCurrentTime();
             struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
@@ -421,7 +457,7 @@ void executeStartupMode(void) {
                 printf("--- Wake up from GPIO %d\n", pin);
                 switch (pin) {
                     case BUTTON_PIN: {
-                        onDemandTask();
+                        onDemandTask(NULL);
                         break; 
                     }
                     case REED_PIN: {

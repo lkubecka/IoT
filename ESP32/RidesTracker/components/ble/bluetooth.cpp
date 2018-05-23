@@ -1,4 +1,6 @@
-﻿#include <BLEDevice.h>
+﻿#if 1
+
+#include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
@@ -109,7 +111,7 @@ namespace kalfy
 
 		void _transferFile() {
 			Serial.println("starting file transfer");
-			File record = kalfy::record::openRecordForUpload();
+			File record = kalfy::record::openRecordForUpload(kalfy::record::DESTINATION_FILE);
 
 			char sizeBuffer[MAX_BLE_PACKET_SIZE];
 			snprintf(sizeBuffer, MAX_BLE_PACKET_SIZE, "%u", record.size());
@@ -125,13 +127,13 @@ namespace kalfy
 				_sendDataCharacteristic.indicate();
 			}
 			Serial.println("file transfer complete");
-			kalfy::record::uploadSucceeded(record); // deletes the underlying file
+			kalfy::record::uploadSucceeded(record, kalfy::record::DESTINATION_FILE); // deletes the underlying file
 		}
 
 		void run()
 		{
 			_init();
-			_hasDataCharacteristic.setValue(kalfy::record::hasData() ? std::string("true") : std::string("false"));
+			_hasDataCharacteristic.setValue(kalfy::record::hasData(kalfy::record::DESTINATION_FILE) ? std::string("true") : std::string("false"));
 			while (_secondsPassed < 60 || _transferRequested)
 			{
 				Serial.printf("_secondsPassed: %d, _transferring: %d, _BLEClientConnected: %d\n", _secondsPassed, _transferRequested, _BLEClientConnected);
@@ -146,3 +148,5 @@ namespace kalfy
 		}
 	}
 }
+
+#endif
