@@ -72,6 +72,7 @@ namespace kalfy
 
 		void deleteFile(const char * fileName)
 		{
+			SPIFFS.begin(true);
 			ESP_LOGI(TAG, "== Deleting file");
 
 			SPIFFS.remove(fileName);

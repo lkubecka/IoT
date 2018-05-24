@@ -13,17 +13,21 @@ namespace kalfy
 {
 	namespace record
 	{
-		void saveRevolution(timeval &timestamp);
+		extern const char* DESTINATION_FILE;
+		extern const char* TEST_FILE;
+
+		void saveRevolution(timeval &timestamp, const char * filename);
 		void uploadAll(const char * apiUrl, const char * deviceId, const char* token, const char * ca_cert);
-		void uploadTest(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert);
+		void uploadFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename);
 		void _saveDate(timeval & dateNow);
-		void savePressure(int32_t pressurePa);
-		bool hasData();
-		File openRecordForUpload();
-		void uploadSucceeded(File file);
-		void uploadFailed(File file);
-		void printAll();
-		void clear();
+		void savePressure(int32_t pressurePa, const char * filename);
+		bool hasData(const char * filename);
+		File openRecordForUpload(const char * filename);
+		void uploadSucceeded(File file, const char * filename);
+		void uploadFailed(File file, const char * filename);
+		void printAll(const char * filename);
+		void clear(const char * filename);
+		void createTestFile(const char * filename);
 	}
 }
 

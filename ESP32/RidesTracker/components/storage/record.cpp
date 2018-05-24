@@ -58,35 +58,36 @@ namespace kalfy
 		static const char* TAG = "record";
 
 		const char* DESTINATION_FILE = "/records.txt";
+		const char* TEST_FILE = "/test.txt";
 
-		void saveRevolution(timeval &now)
+		void saveRevolution(timeval &now,  const char * filename)
 		{
 			char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", now.tv_sec, now.tv_usec);
 			Serial.println(buffer);
-			kalfy::files::appendToFile(DESTINATION_FILE, buffer);
+			kalfy::files::appendToFile(filename, buffer);
 		}
 
-		void savePressure(int32_t pressurePa)
+		void savePressure(int32_t pressurePa, const char * filename)
 		{
 			char buffer[16];
 			snprintf(buffer, sizeof(buffer), "p%d", pressurePa);
 			Serial.println(buffer);
-			kalfy::files::appendToFile(DESTINATION_FILE, buffer);
+			kalfy::files::appendToFile(filename, buffer);
 		}
 
-		bool hasData() {
-			return kalfy::files::hasData(DESTINATION_FILE);
+		bool hasData(const char * filename) {
+			return kalfy::files::hasData(filename);
 		}
 
-		File openRecordForUpload()
+		File openRecordForUpload(const char * filename)
 		{
-			return kalfy::files::openFileForUpload(DESTINATION_FILE);
+			return kalfy::files::openFileForUpload(filename);
 		}
 
-		void uploadSucceeded(File file)
+		void uploadSucceeded(File file, const char * filename)
 		{
-			kalfy::files::uploadSucceeded(file, DESTINATION_FILE);
+			kalfy::files::uploadSucceeded(file, filename);
 		}
 
 		void uploadFailed(File file)
@@ -94,57 +95,12 @@ namespace kalfy
 			kalfy::files::uploadFailed(file);
 		}
 
-		void uploadAll(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert)
-		{
-
-			ESP_LOGI(TAG, "=== uploadAll called");
-			if (apiUrl == nullptr || deviceId == nullptr)
-			{
-				ESP_LOGI(TAG,"Some of the arguments is null!");
-				return;
-			}
-
-			File file = kalfy::files::openFileForUpload(DESTINATION_FILE);
-			if (!file || file.size() == 0)
-			{
-				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file
-				ESP_LOGI(TAG, "=== Nothing to send");
-				return;
-			}
-
-			HTTPClient http;
-			http.begin(String(apiUrl) + deviceId, ca_cert);
-			http.addHeader("Authorization", "Bearer " + String(token));
-			http.addHeader("Content-Type", "application/form-data");
-			int httpResponseCode = http.sendRequest("POST", &file, file.size());
-			if (httpResponseCode == 201)
-			{
-				ESP_LOGI(TAG, "== Data sent successfully");
-				kalfy::files::uploadSucceeded(file, DESTINATION_FILE);
-			}
-			else
-			{
-
-				ESP_LOGI(TAG, "== Sending to server failed");
-				String response = http.getString();
-				ESP_LOGI(TAG, "HTTP response code:");
-				ESP_LOGI(TAG, "%d", httpResponseCode);
-				ESP_LOGI(TAG, "HTTP response body:");
-				ESP_LOGI(TAG, "%s", response);
-
-				kalfy::files::uploadFailed(file);
-			}
-			http.end();
-			ESP_LOGI(TAG, "== Upload complete");
-		}
-
-
-		void printAll()
+		void printAll(const char * filename)
 		{
 
 			ESP_LOGI(TAG,"=== printAll called");
 
-			File file = kalfy::files::openFileForUpload(DESTINATION_FILE);
+			File file = kalfy::files::openFileForUpload(filename);
 			if (!file || file.size() == 0)
 			{
 				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file
@@ -162,26 +118,29 @@ namespace kalfy
 			uploadFailed(file);
 			
 		}
-		void clear() {
-			kalfy::files::deleteFile(DESTINATION_FILE);
+		void clear(const char * filename) {
+			kalfy::files::deleteFile(filename);
 		}
 
-		
-		void uploadTest(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert)
-		{
-			const char* TEST_FILE = "/test.txt";
+		void createTestFile(const char * filename) {
+
 			const int32_t presure = 101250; 
 			struct timeval now = kalfy::time::getCurrentTime();
 
-			kalfy::files::openFileForUpload(TEST_FILE);
-			saveRevolution(now);
-			savePressure(presure);
+		//	File test_file =  kalfy::files::openFileForUpload(filename);
+			saveRevolution(now, filename);
+			savePressure(presure, filename);
 			now = kalfy::time::getCurrentTime();
-			saveRevolution(now);
-			savePressure(presure);
+			saveRevolution(now, filename);
+			savePressure(presure, filename);
+		//	ESP_LOGI(TAG,"File size %d", test_file.size());
+		//	uploadFailed(test_file);
+		}
 
-
-
+		
+		void uploadFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename)
+		{
+			
 			ESP_LOGI(TAG, "=== uploadAll called");
 			if (apiUrl == nullptr || deviceId == nullptr)
 			{
@@ -189,7 +148,7 @@ namespace kalfy
 				return;
 			}
 
-			File file = kalfy::files::openFileForUpload(TEST_FILE);
+			File file = kalfy::files::openFileForUpload(filename);
 			if (!file || file.size() == 0)
 			{
 				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file

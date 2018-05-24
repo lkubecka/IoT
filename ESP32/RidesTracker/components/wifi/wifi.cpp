@@ -24,7 +24,7 @@
 #include <vector>
 #include "string.h"
 
-#if 0
+#if 1
 
 static const char* TAG = "Wi-Fi";
 
@@ -78,7 +78,24 @@ void connect_wifi(Configuration &connection)
 {
     ESP_LOGI(TAG, "Initialising");
 
-    wifi_config_t wifi_config;
+    wifi_init_config_t init_config = {};
+    init_config.event_handler = &esp_event_send;
+    init_config.wpa_crypto_funcs = g_wifi_default_wpa_crypto_funcs;
+    init_config.static_rx_buf_num = CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM;
+    init_config.dynamic_rx_buf_num = CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM;
+    init_config.tx_buf_type = CONFIG_ESP32_WIFI_TX_BUFFER_TYPE;
+    init_config.static_tx_buf_num = WIFI_STATIC_TX_BUFFER_NUM;
+    init_config.dynamic_tx_buf_num = WIFI_DYNAMIC_TX_BUFFER_NUM;
+    init_config.ampdu_rx_enable = WIFI_AMPDU_RX_ENABLED;
+    init_config.ampdu_tx_enable = WIFI_AMPDU_TX_ENABLED;
+    init_config.nvs_enable = WIFI_NVS_ENABLED;
+    init_config.nano_enable = WIFI_NANO_FORMAT_ENABLED;
+    init_config.tx_ba_win = WIFI_DEFAULT_TX_BA_WIN;
+    init_config.rx_ba_win = WIFI_DEFAULT_RX_BA_WIN;
+    init_config.magic = WIFI_INIT_CONFIG_MAGIC;
+    ESP_ERROR_CHECK(esp_wifi_init(&init_config));
+
+    wifi_config_t wifi_config = {};
     strncpy((char *)wifi_config.sta.ssid, connection.getSSID(), sizeof(wifi_config.sta.ssid));
     strncpy((char *)wifi_config.sta.password, connection.getPassword(), sizeof(wifi_config.sta.password));
 
