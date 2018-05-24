@@ -40,7 +40,13 @@
         "bmp180.h": "c",
         "esp_tls.h": "c",
         "array": "c",
-        "vector": "c"
+        "vector": "c",
+        "list": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp",
+        "rope": "cpp",
+        "slist": "cpp",
+        "valarray": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

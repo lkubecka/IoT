@@ -55,6 +55,8 @@
                 "${workspaceFolder}/components/storage",
                 "${workspaceFolder}/components/wifi",
                 "${workspaceFolder}/components/https",
+                "${workspaceFolder}/components/notifier",
+                "${workspaceFolder}/components/button",
                 "${workspaceFolder}/components/arduino/libraries/BLE/src",
                 "${workspaceFolder}/components/arduino/libraries/HTTPClient/src",
                 "${workspaceFolder}/components/arduino/libraries/FS/src",
@@ -84,7 +86,8 @@
                 "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include",
                 "c:/msys32/home/Libor/esp/esp-idf/components/esp-tls",
                 "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/include",
-                "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include"
+                "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include",
+                "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/mbedtls/include"
             ],
             "defines": [
                 "_DEBUG",
@@ -105,6 +108,8 @@
                     "${workspaceFolder}/components/storage",
                     "${workspaceFolder}/components/wifi",
                     "${workspaceFolder}/components/https",
+                    "${workspaceFolder}/components/notifier",
+                    "${workspaceFolder}/components/button",
                     "${workspaceFolder}/components/arduino/libraries/BLE/src",
                     "${workspaceFolder}/components/arduino/libraries/HTTPClient/src",
                     "${workspaceFolder}/components/arduino/libraries/FS/src",
@@ -134,7 +139,8 @@
                     "c:/msys32/home/Libor/esp/esp-idf/components/spiffs/include",
                     "c:/msys32/home/Libor/esp/esp-idf/components/esp-tls",
                     "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/include",
-                    "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include"
+                    "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/port/include",
+                    "c:/msys32/home/Libor/esp/esp-idf/components/mbedtls/mbedtls/include"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""

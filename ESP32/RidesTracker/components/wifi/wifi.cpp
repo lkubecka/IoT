@@ -1,14 +1,3 @@
-/*
- wifi.c - Wi-Fi setup routines
-
- This file is part of the ESP32 Everest Run project
- https://github.com/krzychb/esp32-everest-run
-
- Copyright (c) 2016 Krzysztof Budzynski <krzychb@gazeta.pl>
- This work is licensed under the Apache License, Version 2.0, January 2004
- See the file LICENSE for details.
-*/
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -24,23 +13,85 @@
 #include <vector>
 #include "string.h"
 
-#if 1
+//#include <WiFi.h>
+#include <WiFiClientSecure.h>
 
 static const char* TAG = "Wi-Fi";
+const int WIFI_CONNECTION_TMOUT = 30;
 
 std::vector<Configuration> connections = {  
-    Configuration("NAHATCH", "nahatch123"),
     Configuration("sde-guest", "4Our6uest"),
+    Configuration("NAHATCH", "nahatch123"),    
     Configuration("NAHATCH", "nahatch123")
 };
 
-/* FreeRTOS event group to signal when we are connected & ready to make a request */
-EventGroupHandle_t wifi_event_group;
+
+
+void scanWiFi() {
+	int numOfNetworks = WiFi.scanNetworks();
+	ESP_LOGI(TAG, "WiFi scan done\n");
+
+	if (numOfNetworks == 0) {
+        ESP_LOGI(TAG, "no networks found\n");
+	}
+	else {
+		ESP_LOGI(TAG, "%d networks found\n", numOfNetworks);
+		for (int i = 0; i < numOfNetworks; ++i) {
+			ESP_LOGI(TAG, "%d: %s (%d) %s", i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i), (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*" );
+			vTaskDelay(100 / portTICK_PERIOD_MS);
+		}
+	}
+}
+
+wl_status_t connect_wifi(Configuration &connection) {
+
+	ESP_LOGI(TAG, "Setting SSID: %s and password: %s", connection.getSSID(), connection.getPassword());
+
+    wl_status_t status = WL_IDLE_STATUS;
+	for (int loops = WIFI_CONNECTION_TMOUT; loops > 0; loops--) {
+        WiFi.disconnect();
+        WiFi.mode(WIFI_STA);                                         
+		status = WiFi.begin(connection.getSSID(), connection.getPassword());
+        if (status == WL_CONNECTED) {
+            ESP_LOGI(TAG, "Connected to SSID: %s", connection.getSSID());
+			break;
+		} else {
+            ESP_LOGI(TAG, "WiFi connection attempt: %d, status: %d", loops, (int)status);
+        }
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+
+	return status;
+}
+
+void connectWifi(void)
+{
+    //scanWiFi();
+    for (int i = 0; i < connections.size(); ++i) {
+        wl_status_t status = connect_wifi( connections[i]);
+		if (status == WL_CONNECTED) {
+			ESP_LOGI(TAG, "Wifi connected\n IP address: %s", WiFi.localIP());
+			break;
+		}
+		else {
+            ESP_LOGI(TAG, "WiFi connection attempted: %s", connections[i].getSSID());
+		}
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    } 
+ }
+
+void disconnectWifi(void)
+{
+    WiFi.disconnect(true);
+}
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
 const int CONNECTED_BIT = BIT0;
+
+/* FreeRTOS event group to signal when we are connected & ready to make a request */
+EventGroupHandle_t wifi_event_group;
 
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
@@ -64,9 +115,12 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
+
 void setup_wifi(void) {
     nvs_flash_init();
     tcpip_adapter_init();
+
+
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -74,7 +128,7 @@ void setup_wifi(void) {
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 }
 
-void connect_wifi(Configuration &connection)
+ void connect_wifi_esp(Configuration &connection)
 {
     ESP_LOGI(TAG, "Initialising");
 
@@ -120,35 +174,6 @@ void printNetworkInfo(void) {
     }
 }
 
-
-void initialise_wifi(void)
-{
-    setup_wifi();
-    for (int i = 0; i < connections.size(); ++i) {
-        connect_wifi( connections[i]);
-
-        for (int tmout = 5; tmout >0; --tmout) {
-            ESP_LOGI(TAG, "Waiting for connection");
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
-            if (network_is_alive()) {
-                break;
-            }
-        }
-        
-        if (network_is_alive()) {
-            break;
-        }
-   } 
-
-    if (network_is_alive()) {
-        vTaskDelay(4000 / portTICK_PERIOD_MS);
-        ESP_LOGI(TAG, "Wifi connected");
-        printNetworkInfo();
-    } else {
-        esp_wifi_deinit();
-    }
- }
-
 /**
 @brief Check if Wi-Fi connection is alive
 ToDo: Check if we have internet connectivity available
@@ -167,4 +192,3 @@ bool network_is_alive(void)
     }
 }
 
-#endif

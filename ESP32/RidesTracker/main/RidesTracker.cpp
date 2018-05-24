@@ -36,17 +36,21 @@
 #include "altimeter.h"
 #include "wifi.hpp"
 #include "https.h"
+#include "Notifier.hpp"
+#include "Button.hpp"
 
 #include "Arduino.h"
 #include <HTTPClient.h>
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
+
 #include "record.hpp"
 #include "time.hpp"
 #include "bluetooth.hpp"
 
-#define WLAN_SSID       "NAHATCH"
-#define WLAN_PASS       "nahatch123"
+// #define WLAN_SSID       "NAHATCH"
+// #define WLAN_PASS       "nahatch123"
+
+#define WLAN_SSID       "sde-guest"
+#define WLAN_PASS       "4Our6uest"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -71,6 +75,8 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
+#define MAX_WIFI_CONNECTION_ATTEMPTS 3
+
 
 enum upload_status_t {
     IDLE,
@@ -80,9 +86,6 @@ enum upload_status_t {
 }
 
 upload_status = IDLE;
-
-
-const int MAX_WIFI_CONNECTION_ATTEMPTS = 3;
 
 SemaphoreHandle_t xSemaphore = NULL;
 
@@ -166,32 +169,7 @@ void setLastKnownTime() {
     lastActivityTime = kalfy::time::getCurrentTime();
 }
 
-void scanWiFi() {
-	// WiFi.scanNetworks will return the number of networks found
-	int n = WiFi.scanNetworks();
-	Serial.println("scan done");
-	if (n == 0) {
-		Serial.println("no networks found");
-	}
-	else {
-		Serial.print(n);
-		Serial.println(" networks found");
-		for (int i = 0; i < n; ++i) {
-			// Print SSID and RSSI for each network found
-			Serial.print(i + 1);
-			Serial.print(": ");
-			Serial.print(WiFi.SSID(i));
-			Serial.print(" (");
-			Serial.print(WiFi.RSSI(i));
-			Serial.print(")");
-			Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
-			delay(10);
-		}
-	}
-	Serial.println("");
-}
-
-wl_status_t connectWiFi() {
+wl_status_t connectWiFiManual() {
 	// Connect to WiFi access point.
 	Serial.println();
 	Serial.println();
@@ -208,7 +186,8 @@ wl_status_t connectWiFi() {
         //WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
         WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
     
-		WiFi.begin(WLAN_SSID, WLAN_PASS);
+		//WiFi.begin(WLAN_SSID, WLAN_PASS);
+        WiFi.begin(connections[0].getSSID(), connections[0].getPassword());
 		if (WiFi.status() == WL_CONNECTED) {
 			Serial.println("");
 			Serial.print("WiFi connected ");
@@ -228,23 +207,14 @@ wl_status_t connectWiFi() {
 
 	return WiFi.status();
 }
-
 void uploadTask(void *pvParameter)
 {
-    if( xSemaphore != NULL )
-    {
 
-        // block main task to prevent going to sleep
-        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-        {
-            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
 
-            kalfy::record::uploadAll(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT);
+    kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::DESTINATION_FILE);
 
-            vTaskDelay(2000 / portTICK_RATE_MS);
-            xSemaphoreGive( xSemaphore );
-        }
-    } 
+    vTaskDelay(2000 / portTICK_RATE_MS);
 
     vTaskDelete(NULL);   
 }
@@ -254,7 +224,7 @@ void uploadTestTask(void *pvParameter)
 
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
 
-            kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::DESTINATION_FILE);
+    kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
 
     vTaskDelay(2000 / portTICK_RATE_MS);
 
@@ -272,7 +242,8 @@ void periodicTask(void) {
 
 void onDemandTask(void *pvParameter) {
 
-    connectWiFi();
+   // connectWifi();
+    connectWiFiManual();
     vTaskDelay(2000 / portTICK_RATE_MS);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 	printLocalTime();
@@ -280,14 +251,13 @@ void onDemandTask(void *pvParameter) {
     kalfy::record::createTestFile(kalfy::record::TEST_FILE);
 	kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
 	Serial.println("sendData done");
-	WiFi.disconnect(true);
+	disconnectWifi();
     upload_status = FINISHED;
 
+
+    vTaskDelay(2000 / portTICK_RATE_MS);
     vTaskDelete(NULL);  
 }
-
-
-
 
 
 void getBatteryVoltage(int *batteryVoltage) {
@@ -296,32 +266,6 @@ void getBatteryVoltage(int *batteryVoltage) {
     *batteryVoltage = adc1_get_raw(ADC_CHANNEL);   
 }
 
-class Notifier {
-    private:
-        gpio_num_t _pin;
-        bool _state;
-    public:
-        Notifier(gpio_num_t pin): _pin(pin) {_state = false; }
-        void enable(void) { gpio_set_direction(_pin, GPIO_MODE_OUTPUT); } 
-        void disable(void) { rtc_gpio_isolate(_pin); } 
-        void setLow(void) { gpio_set_level(_pin, _state = false); }
-        void setHigh(void) { gpio_set_level(_pin, _state = true); }
-        void toggle(void) { gpio_set_level(_pin, _state = !_state); }
-};
-
-class Button {
-    private:
-        gpio_num_t _pin;
-    public:
-        Button(gpio_num_t pin): _pin(pin) {     
-            gpio_pullup_dis(_pin);
-	        gpio_pulldown_en(_pin);
-            gpio_set_direction(_pin, GPIO_MODE_INPUT);
-        };
-        void enable(void) { gpio_set_direction(_pin, GPIO_MODE_OUTPUT); } 
-        void disable(void) { rtc_gpio_isolate(_pin); } 
-        int getValue(void) { return gpio_get_level(_pin); }
-};
 
 void printStatus(const RevolutionsCounter & revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
@@ -360,14 +304,6 @@ void saveRotationTask(void *pvParameter)
 	    vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
 	}
 }
-enum upload_status_t {
-    IDLE,
-    STARTED,
-    RUNNING,
-    FINISHED
-}
-
-upload_status_t upload_status = IDLE;
 
 void reedTask(void) {
     RevolutionsCounter revolutionsCounter(REED_PIN); 
@@ -390,8 +326,8 @@ void reedTask(void) {
                 case STARTED: {
                     notifier.setHigh();
                     revolutionsCounter.disable();
-                    xTaskCreate(&onDemandTask, "onDemand", 8192, NULL, 6, NULL);
                     upload_status = RUNNING;
+                    xTaskCreate(&onDemandTask, "onDemand", 8192, NULL, 6, NULL);
                     break;
                 }
                 case RUNNING: {
@@ -417,7 +353,7 @@ void reedTask(void) {
             struct timeval now = kalfy::time::getCurrentTime();
             struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
            
-            if (millis() - printTime > 5000 ) {
+            if (millis() - printTime > 5000  && upload_status != RUNNING) {
                 printTime = millis();
 
                 initAltimeter();
@@ -429,9 +365,7 @@ void reedTask(void) {
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 revolutionsCounter.disable();
                 goToSleep();
-             }
-
-
+            }
         
         vTaskDelay(100 / portTICK_RATE_MS);
     }
