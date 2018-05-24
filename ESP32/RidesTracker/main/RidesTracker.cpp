@@ -34,7 +34,7 @@
 #include "Preferences.hpp"
 #include "time.hpp"
 #include "altimeter.h"
-//#include "wifi.hpp"
+#include "wifi.hpp"
 #include "https.h"
 
 #include "Arduino.h"
@@ -251,20 +251,12 @@ void uploadTask(void *pvParameter)
 
 void uploadTestTask(void *pvParameter)
 {
-    if( xSemaphore != NULL )
-    {
 
-        // block main task to prevent going to sleep
-        if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
-        {
-            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
 
             kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::DESTINATION_FILE);
 
-            vTaskDelay(2000 / portTICK_RATE_MS);
-            xSemaphoreGive( xSemaphore );
-        }
-    } 
+    vTaskDelay(2000 / portTICK_RATE_MS);
 
     vTaskDelete(NULL);   
 }
@@ -292,9 +284,6 @@ void onDemandTask(void *pvParameter) {
     upload_status = FINISHED;
 
     vTaskDelete(NULL);  
-    // vSemaphoreCreateBinary( xSemaphore );
-    // initialise_wifi();
-    // xTaskCreate(&uploadTestTask, "uploadTestTask", 8192, NULL, 6, NULL);
 }
 
 
@@ -371,7 +360,14 @@ void saveRotationTask(void *pvParameter)
 	    vTaskDelay(100 / portTICK_PERIOD_MS); //wait for 100 ms
 	}
 }
+enum upload_status_t {
+    IDLE,
+    STARTED,
+    RUNNING,
+    FINISHED
+}
 
+upload_status_t upload_status = IDLE;
 
 void reedTask(void) {
     RevolutionsCounter revolutionsCounter(REED_PIN); 
