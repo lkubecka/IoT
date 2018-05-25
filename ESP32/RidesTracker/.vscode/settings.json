@@ -46,7 +46,10 @@
         "xtree": "cpp",
         "rope": "cpp",
         "slist": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "ratio": "cpp",
+        "random": "cpp",
+        "bitset": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

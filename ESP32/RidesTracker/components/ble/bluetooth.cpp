@@ -1,4 +1,5 @@
-﻿#ifdef __USE_BLUETOOTH_
+﻿#define __USE_BLUETOOTH_
+#ifdef __USE_BLUETOOTH_
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>

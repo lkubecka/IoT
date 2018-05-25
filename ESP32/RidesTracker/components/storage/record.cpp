@@ -123,18 +123,18 @@ namespace kalfy
 		}
 
 		void createTestFile(const char * filename) {
+            printAll(filename);
+			kalfy::files::deleteFile(filename);
 
 			const int32_t presure = 101250; 
 			struct timeval now = kalfy::time::getCurrentTime();
-
-		//	File test_file =  kalfy::files::openFileForUpload(filename);
+			
 			saveRevolution(now, filename);
 			savePressure(presure, filename);
 			now = kalfy::time::getCurrentTime();
 			saveRevolution(now, filename);
 			savePressure(presure, filename);
-		//	ESP_LOGI(TAG,"File size %d", test_file.size());
-		//	uploadFailed(test_file);
+
 		}
 
 		

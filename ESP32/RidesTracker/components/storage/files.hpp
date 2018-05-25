@@ -13,6 +13,8 @@ namespace kalfy
 		void appendToFile(const char * fileName, const char * line);
 		bool hasData(const char * fileName);
 		void deleteFile(const char * fileName);
+		void initSPIFFS(void);
+		void detachSPIFFS(void);
 	}
 }
 

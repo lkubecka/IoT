@@ -12,10 +12,17 @@ namespace kalfy
 	{
 		static const char* TAG = "files";
 
+		void initSPIFFS(void) {
+			SPIFFS.begin(true);
+		}
+		void detachSPIFFS(void) {
+			SPIFFS.end();
+		}
+
 		File openFileForUpload(const char * fileName)
 		{
 			ESP_LOGI(TAG, "=== openFileForUpload called");
-			SPIFFS.begin(true);
+			
 			return SPIFFS.open(fileName, FILE_READ);
 		}
 
@@ -26,20 +33,17 @@ namespace kalfy
 			{
 				ESP_LOGI(TAG, "=== Deleting failed");
 			}
-			SPIFFS.end();
 		}
 
 		void uploadFailed(File file)
 		{
 			file.close();
-			SPIFFS.end();
 		}
 
 		void appendToFile(const char * fileName, const char * line)
 		{
 			ESP_LOGI(TAG, "== Appending to file");
 
-			SPIFFS.begin(true);
 			File file = SPIFFS.open(fileName, FILE_APPEND);
 			if (!file)
 			{
@@ -50,12 +54,10 @@ namespace kalfy
 			ESP_LOGI(TAG, "%s", size ? "== Appending succeeded" : "== Appending failed - could not print to file");			
 			file.flush();
 			file.close();
-			SPIFFS.end();
 		}
 
 		bool hasData(const char * fileName)
 		{
-			SPIFFS.begin(true);
 			File file = SPIFFS.open(fileName, FILE_READ);
 			if (!file)
 			{
@@ -64,7 +66,6 @@ namespace kalfy
 			bool hasData = file.peek() >= 0;
 
 			file.close();
-			SPIFFS.end();
 
 			return hasData;
 		}
@@ -72,12 +73,9 @@ namespace kalfy
 
 		void deleteFile(const char * fileName)
 		{
-			SPIFFS.begin(true);
 			ESP_LOGI(TAG, "== Deleting file");
 
 			SPIFFS.remove(fileName);
-
-			SPIFFS.end();
 		}
 	}
 }

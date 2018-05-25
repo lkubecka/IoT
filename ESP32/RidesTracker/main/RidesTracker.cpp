@@ -42,6 +42,7 @@
 #include <HTTPClient.h>
 
 #include "record.hpp"
+#include "files.hpp"
 #include "time.hpp"
 #include "bluetooth.hpp"
 
@@ -64,7 +65,7 @@ const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1 minute IDLE
 volatile uint8_t state = 0x00;
 Preferences preferences;
 static uint32_t presure = 0;
-static int batteryVoltage = 0;
+static float batteryVoltage = 0;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
@@ -189,16 +190,27 @@ void uploadTestTask(void *pvParameter)
 }
 
 void periodicTask(void) {
+    Notifier notifier(LED_PIN);
+    notifier.setHigh();
     Serial.println("=== sendData called");
-   // kalfy::ble::run();
+    kalfy::ble::run();
     Serial.println("sendData done");
-
+    notifier.setLow();
     
     goToSleep();
+    
 }
-const char* THINGSBOARD_SERVER = "https://demo.thingsboard.io/api/v1/jkQhEGILJIsR9BRoRQ1j/telemetry";
-const char* THINGSBOARD_ID = "b6e3d600-5f4f-11e8-9588-c3b186e30863";
-const char* THINGSBOARD_TOKEN = "jkQhEGILJIsR9BRoRQ1j";
+
+void getBatteryVoltage(float *batteryVoltage) {
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
+    *batteryVoltage = 1.05*(122.0/22.0)*adc1_get_raw(ADC_CHANNEL)/4096;
+}
+
+
+const char* THINGSBOARD_SERVER = "http://demo.thingsboard.io/api/v1/WLN5UNEzcFUWA9qvgRnX/telemetry";
+const char* THINGSBOARD_ID = "659b6670-600b-11e8-9588-c3b186e30863";
+const char* THINGSBOARD_TOKEN = "WLN5UNEzcFUWA9qvgRnX";
 const char* THINGSBOARD_CERT = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIEkjCCA3qgAwIBAgIQCgFBQgAAAVOFc2oLheynCDANBgkqhkiG9w0BAQsFADA/\n" \
@@ -228,26 +240,37 @@ const char* THINGSBOARD_CERT = \
 "KOqkqm57TH2H3eDJAkSnh6/DNFu0Qg==\n" \
 "-----END CERTIFICATE-----\n";
 
+typedef struct alive_report_item_t {
+    struct timeval timestamp;
+    uint32_t presure;
+    float voltage;
+} alive_report_item_t;
 
-void sendBatteryVoltage(void) {
+void reportAlive(alive_report_item_t &report) {
     HTTPClient http;
-    http.begin(String(THINGSBOARD_SERVER), THINGSBOARD_CERT);
+    http.begin(String(THINGSBOARD_SERVER)); //THINGSBOARD_CERT
     http.addHeader("Content-Type", "application/json");
-   // http.addHeader("Authorization", "Bearer " + String(THINGSBOARD_TOKEN));
 
-    // Prepare a JSON payload string
-    struct timeval now = kalfy::time::getCurrentTime();
-    float battery_level = 4.3;
+    char timestamp[20];
+    kalfy::time::toMiliSecsStr(&(report.timestamp), timestamp);
+    timestamp[14] = '\0';
+   
     String payload = "{";
-    payload += "\"ts\":"; payload += now.tv_sec; payload += ",";
+    payload += "\"ts\":"; payload += timestamp; payload += ",";
     payload += "\"values\": {"; 
-    payload += "\"battery\":"; payload += battery_level; payload += ",";
-    payload += "\"temperature\":"; payload += battery_level; payload += ",";
+    payload += "\"battery\":"; payload += report.voltage ; payload += ",";
+    payload += "\"presure\":"; payload += report.presure;
     payload += "}}";
 
     // Send payload
     char attributes[120];
-    payload.toCharArray( attributes, 120 );
+    payload.toCharArray( attributes, 120);
+    if (payload.length() > 120) {
+        ESP_LOGE(TAG, "Max payload is 120 Bytes, %d requested", payload.length());
+    }
+
+    ESP_LOGI(TAG, "Server: %s", THINGSBOARD_SERVER);
+    ESP_LOGI(TAG, "Payload: \n%s", payload.c_str());
 
     int httpResponseCode = http.sendRequest("POST", payload);
     if (httpResponseCode == 201)
@@ -256,7 +279,6 @@ void sendBatteryVoltage(void) {
     }
     else
     {
-
         ESP_LOGI(TAG, "== Sending to server failed");
         String response = http.getString();
         ESP_LOGI(TAG, "HTTP response code:");
@@ -268,41 +290,61 @@ void sendBatteryVoltage(void) {
     ESP_LOGI(TAG, "== Upload complete");
 }
 
+void updateTime(void) {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    printLocalTime();
+    preferences.begin("RidezTracker", false);
+    preferences.putBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
+    preferences.end();
+}
 
+void getAliveData(alive_report_item_t & report) {
+    initAltimeter();
+    vTaskDelay(2000 / portTICK_RATE_MS);
+    getAltitude(&(report.presure));
+    getBatteryVoltage(&(report.voltage));
+    report.timestamp = kalfy::time::getCurrentTime();
+}
 
 void onDemandTask(void *pvParameter) {
+    Notifier notifier(LED_PIN);
+    notifier.setHigh();
+    kalfy::files::initSPIFFS();
+    nvs_flash_init();
 
-    //connectWifi();
-    connectWifiManual();
-    vTaskDelay(2000 / portTICK_RATE_MS);
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-	printLocalTime();
-
-    sendBatteryVoltage();
-
-    kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-	kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
-	Serial.println("sendData done");
-	disconnectWifi();
-    upload_status = FINISHED;
+    if (connectWifiManual() ) {
+        
+        updateTime();    
 
 
-    vTaskDelay(2000 / portTICK_RATE_MS);
+        alive_report_item_t report = {{0L,0L}, 0, 0.0};
+        getAliveData(report);
+        reportAlive(report);
+
+        kalfy::record::createTestFile(kalfy::record::TEST_FILE);
+        vTaskDelay(2000 / portTICK_RATE_MS);
+       // kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
+        disconnectWifi();
+        upload_status = FINISHED;
+
+        vTaskDelay(2000 / portTICK_RATE_MS);
+    }
+
+    kalfy::files::detachSPIFFS();
+    notifier.setLow();
+    goToSleep();
+
     vTaskDelete(NULL);  
 }
 
 
-void getBatteryVoltage(int *batteryVoltage) {
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC_CHANNEL,ADC_ATTEN_DB_0);
-    *batteryVoltage = adc1_get_raw(ADC_CHANNEL);   
-}
 
 
-void printStatus(const RevolutionsCounter & revolutionsCounter, const int & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
+
+void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
-    ESP_LOGI( TAG, "Battery voltage %fV\n", 1.05*(122.0/22.0)*batteryVoltage/4096);
-    ESP_LOGI(TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+    ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
+    ESP_LOGI( TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
     ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
@@ -341,6 +383,7 @@ void reedTask(void) {
     RevolutionsCounter revolutionsCounter(REED_PIN); 
     Button button(BUTTON_PIN);
     Notifier notifier(LED_PIN);
+    kalfy::files::initSPIFFS();
 
     xTaskCreate(saveRotationTask, "saveRotationTask", 4096, &notifier, 10, NULL);  
     unsigned long printTime = 0;
@@ -375,13 +418,6 @@ void reedTask(void) {
                 default: {;}
             }
                 
-                
-               // kalfy::record::printAll();
-    
-              //  initialise_wifi();
-              //  xTaskCreate(&uploadTask, "uploadTask", 8192, NULL, 6, NULL);
-            
-
             struct timeval now = kalfy::time::getCurrentTime();
             struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
            
@@ -396,6 +432,7 @@ void reedTask(void) {
 
             if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 revolutionsCounter.disable();
+                kalfy::files::detachSPIFFS();
                 goToSleep();
             }
         

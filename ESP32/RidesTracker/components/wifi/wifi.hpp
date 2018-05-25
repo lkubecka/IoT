@@ -19,12 +19,14 @@
 #include <vector>
 #include "string.h"
 
-extern EventGroupHandle_t wifi_event_group;
-extern const int CONNECTED_BIT;
-extern std::vector<Configuration> connections;
+#ifdef _ESP_WIFI__
+    extern EventGroupHandle_t wifi_event_group;
+    extern const int CONNECTED_BIT;
+    extern std::vector<Configuration> connections;
+#endif
 
 void connectWifi(void);
-void connectWifiManual(void);
+bool connectWifiManual(void);
 void disconnectWifi(void);
 
 

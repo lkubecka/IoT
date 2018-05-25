@@ -10,9 +10,11 @@ namespace kalfy
 		long durationBeforeNow(struct timeval *past);
 		struct timeval getCurrentTime();
 		void setTime(long secondsSinceEpoch);
-		long toMicroSecs(struct timeval *a);
-		long toMiliSecs(struct timeval *a);
+		unsigned long toMicroSecs(struct timeval *a);
+		unsigned long toMiliSecs(struct timeval *a);
+		void toMiliSecsStr(struct timeval *a, char * buffer);
 		struct timeval sub(struct timeval *a, struct timeval *b);
+		unsigned long getTime(void);
 	}
 }
 
