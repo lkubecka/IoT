@@ -24,6 +24,7 @@ extern const int CONNECTED_BIT;
 extern std::vector<Configuration> connections;
 
 void connectWifi(void);
+void connectWifiManual(void);
 void disconnectWifi(void);
 
 

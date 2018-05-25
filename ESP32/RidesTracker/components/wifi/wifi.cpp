@@ -16,12 +16,20 @@
 //#include <WiFi.h>
 #include <WiFiClientSecure.h>
 
+#define MAX_WIFI_CONNECTION_ATTEMPTS 3
+#define WLAN_SSID       "NAHATCH"
+#define WLAN_PASS       "nahatch123"
+
+//#define WLAN_SSID       "sde-guest"
+//#define WLAN_PASS       "4Our6uest"
+
 static const char* TAG = "Wi-Fi";
 const int WIFI_CONNECTION_TMOUT = 30;
 
 std::vector<Configuration> connections = {  
     Configuration("sde-guest", "4Our6uest"),
     Configuration("NAHATCH", "nahatch123"),    
+   
     Configuration("NAHATCH", "nahatch123")
 };
 
@@ -79,6 +87,47 @@ void connectWifi(void)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     } 
  }
+
+
+void connectWifiManual(void) {
+	// Connect to WiFi access point.
+	Serial.println();
+	Serial.println();
+
+    //WiFi.mode(WIFI_OFF);
+    delay(2000);
+	Serial.println("Connecting Wifi ");
+	for (int connectionID = 0; connectionID < MAX_WIFI_CONNECTION_ATTEMPTS; connectionID++) {
+        Serial.print("Connecting to ");
+	    Serial.println(connections[connectionID].getSSID());
+        Serial.println(connections[connectionID].getPassword());
+        
+		WiFi.disconnect(true);                                      // Clear Wifi Credentials
+        WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
+        WiFi.mode(WIFI_OFF);
+        delay(2000);
+        WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
+    
+		WiFi.begin(connections[connectionID].getSSID(), connections[connectionID].getPassword());
+		if (WiFi.status() == WL_CONNECTED) {
+			Serial.println("");
+			Serial.print("WiFi connected ");
+			Serial.print("IP address: ");
+			Serial.println(WiFi.localIP());
+			break;
+		}
+		else {
+			Serial.print("WiFi connection attempt: ");
+			Serial.println(connectionID);
+			
+		}
+		vTaskDelay(10000 / portTICK_PERIOD_MS);
+		//delay(10000);
+	}
+
+
+	//return WiFi.status();
+}
 
 void disconnectWifi(void)
 {

@@ -158,8 +158,9 @@ namespace kalfy
 
 			HTTPClient http;
 			http.begin(String(apiUrl) + deviceId, ca_cert);
+			http.addHeader("Content-Type", "multipart/form-data");
+			//http.addHeader("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
 			http.addHeader("Authorization", "Bearer " + String(token));
-			http.addHeader("Content-Type", "application/form-data");
 			int httpResponseCode = http.sendRequest("POST", &file, file.size());
 			if (httpResponseCode == 201)
 			{

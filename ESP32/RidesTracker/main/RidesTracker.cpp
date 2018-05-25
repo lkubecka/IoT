@@ -6,7 +6,6 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -46,11 +45,7 @@
 #include "time.hpp"
 #include "bluetooth.hpp"
 
-// #define WLAN_SSID       "NAHATCH"
-// #define WLAN_PASS       "nahatch123"
 
-#define WLAN_SSID       "sde-guest"
-#define WLAN_PASS       "4Our6uest"
 
 #define WAKE_UP_TIME_SEC 60
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -75,7 +70,7 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
-#define MAX_WIFI_CONNECTION_ATTEMPTS 3
+
 
 
 enum upload_status_t {
@@ -169,44 +164,6 @@ void setLastKnownTime() {
     lastActivityTime = kalfy::time::getCurrentTime();
 }
 
-wl_status_t connectWiFiManual() {
-	// Connect to WiFi access point.
-	Serial.println();
-	Serial.println();
-	
-	Serial.print("Connecting to ");
-	Serial.println(WLAN_SSID);
-
-    //WiFi.mode(WIFI_OFF);
-    delay(2000);
-	Serial.println("Connecting Wifi ");
-	for (int loops = MAX_WIFI_CONNECTION_ATTEMPTS; loops > 0; loops--) {
-  
-		//WiFi.disconnect(true);                                      // Clear Wifi Credentials
-        //WiFi.persistent(false);                                     // Avoid to store Wifi configuration in Flash
-        WiFi.mode(WIFI_STA);                                        // Ensure WiFi mode is Station 
-    
-		//WiFi.begin(WLAN_SSID, WLAN_PASS);
-        WiFi.begin(connections[0].getSSID(), connections[0].getPassword());
-		if (WiFi.status() == WL_CONNECTED) {
-			Serial.println("");
-			Serial.print("WiFi connected ");
-			Serial.print("IP address: ");
-			Serial.println(WiFi.localIP());
-			break;
-		}
-		else {
-			Serial.print("WiFi connection attempt: ");
-			Serial.println(loops);
-			
-		}
-		vTaskDelay(10000 / portTICK_PERIOD_MS);
-		//delay(10000);
-	}
-
-
-	return WiFi.status();
-}
 void uploadTask(void *pvParameter)
 {
 
@@ -233,20 +190,95 @@ void uploadTestTask(void *pvParameter)
 
 void periodicTask(void) {
     Serial.println("=== sendData called");
-    kalfy::ble::run();
+   // kalfy::ble::run();
     Serial.println("sendData done");
 
     
     goToSleep();
 }
+const char* THINGSBOARD_SERVER = "https://demo.thingsboard.io/api/v1/jkQhEGILJIsR9BRoRQ1j/telemetry";
+const char* THINGSBOARD_ID = "b6e3d600-5f4f-11e8-9588-c3b186e30863";
+const char* THINGSBOARD_TOKEN = "jkQhEGILJIsR9BRoRQ1j";
+const char* THINGSBOARD_CERT = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIEkjCCA3qgAwIBAgIQCgFBQgAAAVOFc2oLheynCDANBgkqhkiG9w0BAQsFADA/\n" \
+"MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n" \
+"DkRTVCBSb290IENBIFgzMB4XDTE2MDMxNzE2NDA0NloXDTIxMDMxNzE2NDA0Nlow\n" \
+"SjELMAkGA1UEBhMCVVMxFjAUBgNVBAoTDUxldCdzIEVuY3J5cHQxIzAhBgNVBAMT\n" \
+"GkxldCdzIEVuY3J5cHQgQXV0aG9yaXR5IFgzMIIBIjANBgkqhkiG9w0BAQEFAAOC\n" \
+"AQ8AMIIBCgKCAQEAnNMM8FrlLke3cl03g7NoYzDq1zUmGSXhvb418XCSL7e4S0EF\n" \
+"q6meNQhY7LEqxGiHC6PjdeTm86dicbp5gWAf15Gan/PQeGdxyGkOlZHP/uaZ6WA8\n" \
+"SMx+yk13EiSdRxta67nsHjcAHJyse6cF6s5K671B5TaYucv9bTyWaN8jKkKQDIZ0\n" \
+"Z8h/pZq4UmEUEz9l6YKHy9v6Dlb2honzhT+Xhq+w3Brvaw2VFn3EK6BlspkENnWA\n" \
+"a6xK8xuQSXgvopZPKiAlKQTGdMDQMc2PMTiVFrqoM7hD8bEfwzB/onkxEz0tNvjj\n" \
+"/PIzark5McWvxI0NHWQWM6r6hCm21AvA2H3DkwIDAQABo4IBfTCCAXkwEgYDVR0T\n" \
+"AQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAYYwfwYIKwYBBQUHAQEEczBxMDIG\n" \
+"CCsGAQUFBzABhiZodHRwOi8vaXNyZy50cnVzdGlkLm9jc3AuaWRlbnRydXN0LmNv\n" \
+"bTA7BggrBgEFBQcwAoYvaHR0cDovL2FwcHMuaWRlbnRydXN0LmNvbS9yb290cy9k\n" \
+"c3Ryb290Y2F4My5wN2MwHwYDVR0jBBgwFoAUxKexpHsscfrb4UuQdf/EFWCFiRAw\n" \
+"VAYDVR0gBE0wSzAIBgZngQwBAgEwPwYLKwYBBAGC3xMBAQEwMDAuBggrBgEFBQcC\n" \
+"ARYiaHR0cDovL2Nwcy5yb290LXgxLmxldHNlbmNyeXB0Lm9yZzA8BgNVHR8ENTAz\n" \
+"MDGgL6AthitodHRwOi8vY3JsLmlkZW50cnVzdC5jb20vRFNUUk9PVENBWDNDUkwu\n" \
+"Y3JsMB0GA1UdDgQWBBSoSmpjBH3duubRObemRWXv86jsoTANBgkqhkiG9w0BAQsF\n" \
+"AAOCAQEA3TPXEfNjWDjdGBX7CVW+dla5cEilaUcne8IkCJLxWh9KEik3JHRRHGJo\n" \
+"uM2VcGfl96S8TihRzZvoroed6ti6WqEBmtzw3Wodatg+VyOeph4EYpr/1wXKtx8/\n" \
+"wApIvJSwtmVi4MFU5aMqrSDE6ea73Mj2tcMyo5jMd6jmeWUHK8so/joWUoHOUgwu\n" \
+"X4Po1QYz+3dszkDqMp4fklxBwXRsW10KXzPMTZ+sOPAveyxindmjkW8lGy+QsRlG\n" \
+"PfZ+G6Z6h7mjem0Y+iWlkYcV4PIWL1iwBi8saCbGS5jN2p8M+X+Q7UNKEkROb3N6\n" \
+"KOqkqm57TH2H3eDJAkSnh6/DNFu0Qg==\n" \
+"-----END CERTIFICATE-----\n";
+
+
+void sendBatteryVoltage(void) {
+    HTTPClient http;
+    http.begin(String(THINGSBOARD_SERVER), THINGSBOARD_CERT);
+    http.addHeader("Content-Type", "application/json");
+   // http.addHeader("Authorization", "Bearer " + String(THINGSBOARD_TOKEN));
+
+    // Prepare a JSON payload string
+    struct timeval now = kalfy::time::getCurrentTime();
+    float battery_level = 4.3;
+    String payload = "{";
+    payload += "\"ts\":"; payload += now.tv_sec; payload += ",";
+    payload += "\"values\": {"; 
+    payload += "\"battery\":"; payload += battery_level; payload += ",";
+    payload += "\"temperature\":"; payload += battery_level; payload += ",";
+    payload += "}}";
+
+    // Send payload
+    char attributes[120];
+    payload.toCharArray( attributes, 120 );
+
+    int httpResponseCode = http.sendRequest("POST", payload);
+    if (httpResponseCode == 201)
+    {
+        ESP_LOGI(TAG, "== Data sent successfully");
+    }
+    else
+    {
+
+        ESP_LOGI(TAG, "== Sending to server failed");
+        String response = http.getString();
+        ESP_LOGI(TAG, "HTTP response code:");
+        ESP_LOGI(TAG, "%d", httpResponseCode);
+        ESP_LOGI(TAG, "HTTP response body:");
+        ESP_LOGI(TAG, "%s", response);
+    }
+    http.end();
+    ESP_LOGI(TAG, "== Upload complete");
+}
+
+
 
 void onDemandTask(void *pvParameter) {
 
-   // connectWifi();
-    connectWiFiManual();
+    //connectWifi();
+    connectWifiManual();
     vTaskDelay(2000 / portTICK_RATE_MS);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 	printLocalTime();
+
+    sendBatteryVoltage();
 
     kalfy::record::createTestFile(kalfy::record::TEST_FILE);
 	kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
