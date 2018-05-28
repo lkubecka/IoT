@@ -191,10 +191,14 @@ void uploadTestTask(void *pvParameter)
 
 void periodicTask(void) {
     Notifier notifier(LED_PIN);
+    kalfy::files::initSPIFFS();
+    nvs_flash_init();
+
     notifier.setHigh();
-    Serial.println("=== sendData called");
-    kalfy::ble::run();
-    Serial.println("sendData done");
+    ESP_LOGI(TAG, "=== sendData called");
+    kalfy::BLE BLEupdater(kalfy::record::DESTINATION_FILE);
+    BLEupdater.run();
+    ESP_LOGI(TAG, "sendData done");
     notifier.setLow();
     
     goToSleep();
@@ -308,27 +312,40 @@ void getAliveData(alive_report_item_t & report) {
 
 void onDemandTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
-    notifier.setHigh();
+
     kalfy::files::initSPIFFS();
     nvs_flash_init();
 
+    vTaskDelay(1000 / portTICK_RATE_MS);
+
+    notifier.setHigh();
     if (connectWifiManual() ) {
         
         updateTime();    
 
+        vTaskDelay(2000 / portTICK_RATE_MS);
+        kalfy::record::createTestFile(kalfy::record::TEST_FILE);
+        kalfy::record::printAll(kalfy::record::TEST_FILE);
 
         alive_report_item_t report = {{0L,0L}, 0, 0.0};
         getAliveData(report);
         reportAlive(report);
 
-        kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-        vTaskDelay(2000 / portTICK_RATE_MS);
-       // kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
+        kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
         disconnectWifi();
         upload_status = FINISHED;
 
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
+
+    kalfy::record::createTestFile(kalfy::record::TEST_FILE);
+    kalfy::record::printAll(kalfy::record::TEST_FILE);
+
+    ESP_LOGI(TAG, "=== sendData called");
+    kalfy::BLE BLEupdater(kalfy::record::TEST_FILE);
+    BLEupdater.run();
+    ESP_LOGI(TAG, "sendData done");
+    notifier.setLow();
 
     kalfy::files::detachSPIFFS();
     notifier.setLow();

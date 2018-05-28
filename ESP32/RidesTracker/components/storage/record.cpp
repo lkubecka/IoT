@@ -13,8 +13,8 @@
 
 
 const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net/api/v1/Records/";
-const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
-const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJiNDg5ODE1Yy1iOWU2LTRjNzUtOTNmZS0wNDE4MTEwYzk5NDciLCJleHAiOjE1MjczNDEzMjMsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.FjuVmDSP8HGJttu7hC_T6rRoCLUDYeadn_cZdMNITb0";
+const char* ODOCYCLE_ID = "c0f6928d-cac5-4025-adc4-bad65f06b1d8";
+const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJmYmI4OTc2MC1jNTVjLTQ2MzItYWIwNi05ZjgyMTFmMDdlNDQiLCJleHAiOjE1MzAxMTgxMDEsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.VC1VAuoMFyqvPM21ZE1BIl3EbjC497jL3T77Q36TqPM";
 
 const char* ODOCYCLE_CERT = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -158,7 +158,7 @@ namespace kalfy
 
 			HTTPClient http;
 			http.begin(String(apiUrl) + deviceId, ca_cert);
-			http.addHeader("Content-Type", "multipart/form-data");
+			http.addHeader("Content-Type", "multipart/form-data; boundary=5ed41908-0515-4f7f-ae1a-d3b2ebee72ea");
 			//http.addHeader("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
 			http.addHeader("Authorization", "Bearer " + String(token));
 			int httpResponseCode = http.sendRequest("POST", &file, file.size());

@@ -64,6 +64,7 @@ namespace kalfy
 				return false;
 			}
 			bool hasData = file.peek() >= 0;
+			ESP_LOGI(TAG, "File %s - Has data %d, size: %d", fileName, hasData, file.peek());	
 
 			file.close();
 
