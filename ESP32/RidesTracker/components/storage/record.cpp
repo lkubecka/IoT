@@ -224,12 +224,13 @@ namespace kalfy
 				// try connect or return on fail
 				client.setCACert(ODOCYCLE_CERT);
 				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT)) {
-				Serial.println("http post connection failed");
+					Serial.println("https post connection failed");
 					//return String("Post Failure");
+					return;
 				}
 
 				// We now create a URI for the request
-				String url = String(ODOCYCLE_URL) + String(ODOCYCLE_ID);
+				String url = String(ODOCYCLE_SERVER) + String(ODOCYCLE_URL) + String(ODOCYCLE_ID);
 				Serial.println("Connected to server");
 				Serial.print("Requesting URL: ");
 				Serial.println(url.c_str());
@@ -237,7 +238,7 @@ namespace kalfy
 
 				// Make a HTTP request and add HTTP headers
 				String boundary = "SolarServerBoundaryjg2qVIUS8teOAbN3";
-				String contentType = "text/plain";
+				String contentType = "form-data"; //"text/plain";
 				String portString = String(ODOCYCLE_PORT);
 				String hostString = String(ODOCYCLE_SERVER);
 				
@@ -249,7 +250,7 @@ namespace kalfy
 				
 				// key header
 				String keyHeader = "--" + boundary + "\r\n";
-				keyHeader += "Content-Disposition: form-data; name=\"key\"\r\n\r\n";
+				keyHeader += "Content-Disposition: form-data; name=\"record\"\r\n\r\n";
 				keyHeader += "${filename}\r\n";
 
 				// request header
