@@ -222,6 +222,7 @@ namespace kalfy
 				Serial.println(ODOCYCLE_SERVER);
 
 				// try connect or return on fail
+				client.setCACert(ODOCYCLE_CERT);
 				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT)) {
 				Serial.println("http post connection failed");
 					//return String("Post Failure");
@@ -236,7 +237,7 @@ namespace kalfy
 
 				// Make a HTTP request and add HTTP headers
 				String boundary = "SolarServerBoundaryjg2qVIUS8teOAbN3";
-				String contentType = "image/jpeg";
+				String contentType = "text/plain";
 				String portString = String(ODOCYCLE_PORT);
 				String hostString = String(ODOCYCLE_SERVER);
 				
@@ -315,16 +316,16 @@ namespace kalfy
 				String responseHeaders = "";
 
 				while (client.connected()) {
-				// Serial.println("while client connected");
-				String line = client.readStringUntil('\n');
-				Serial.println(line);
-				responseHeaders += line;
-				if (line == "\r") {
-					Serial.println("headers received");
-					break;
+					// Serial.println("while client connected");
+					String line = client.readStringUntil('\n');
+					Serial.println(line);
+					responseHeaders += line;
+					if (line == "\r") {
+						Serial.println("headers received");
+						break;
+					}
 				}
 				
-
 				String line = client.readStringUntil('\n');
 
 				Serial.println("reply was:");

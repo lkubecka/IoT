@@ -597,11 +597,11 @@ void executeStartupMode(void) {
                 printf("--- Wake up from GPIO %d\n", pin);
                 switch (pin) {
                     case WIFI_BUTTON_PIN: {
-                        WifiTask(NULL);
+                        testTask(NULL);
                         break; 
                     }
                     case BLE_BUTTON_PIN: {
-                        testTask(NULL);
+                        BLETask(NULL);
                         break; 
                     }
                     case REED_PIN: {
