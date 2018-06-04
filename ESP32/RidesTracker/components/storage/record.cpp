@@ -3,18 +3,21 @@
 #include <FS.h>
 #include <HTTPClient.h>
 #include <sys/time.h>
+#include "wifi.hpp"
 #include "record.hpp"
 #include "files.hpp"
 #include "time.hpp"
+#include "WiFiClientSecure.h"
 
 #ifdef ARDUINO_ARCH_ESP32
 #include "esp32-hal-log.h"
 #endif
 
-
-const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net/api/v1/Records/";
+const int ODOCYCLE_PORT = 443;
+const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net";
+const char* ODOCYCLE_URL = "/api/v1/Records/";
 const char* ODOCYCLE_ID = "c0f6928d-cac5-4025-adc4-bad65f06b1d8";
-const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiJmYmI4OTc2MC1jNTVjLTQ2MzItYWIwNi05ZjgyMTFmMDdlNDQiLCJleHAiOjE1MzAxMTgxMDEsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.VC1VAuoMFyqvPM21ZE1BIl3EbjC497jL3T77Q36TqPM";
+const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiI3ZmM2ODNmOC04ZWEwLTQzYjMtODM5YS1mYjkwMmQ1M2FmYmUiLCJleHAiOjE1MzA2OTQ4MjIsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.Nf1HgLzT9ZEq7cp-T99KMA9xlpFCIxU-K2J0HYXHAVE";
 
 const char* ODOCYCLE_CERT = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -182,7 +185,159 @@ namespace kalfy
 			http.end();
 			ESP_LOGI(TAG, "== Upload complete");
 		}
+
+		void uploadMultipartFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename)
+		{
+			
+			ESP_LOGI(TAG, "=== uploadAll called");
+			if (apiUrl == nullptr || deviceId == nullptr)
+			{
+				ESP_LOGI(TAG,"Some of the arguments is null!");
+				return;
+			}
+
+			File file = kalfy::files::openFileForUpload(filename);
+			if (!file || file.size() == 0)
+			{
+				// the HTTPClient API has some issue with zero-size files, crashes, so we must check for an empty file
+				ESP_LOGI(TAG, "=== Nothing to send");
+				return;
+			}
+
+			WiFiClientSecure client;
+
+			String fileName = file.name();
+			String fileSize = String(file.size());
+
+			Serial.println();
+			Serial.println("file exists");
+			Serial.println(file);
+
+			if (file) {
+
+				// print content length and host
+				Serial.println("contentLength");
+				Serial.println(fileSize);
+				Serial.print("connecting to ");
+				Serial.println(ODOCYCLE_SERVER);
+
+				// try connect or return on fail
+				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT)) {
+				Serial.println("http post connection failed");
+					//return String("Post Failure");
+				}
+
+				// We now create a URI for the request
+				String url = String(ODOCYCLE_URL) + String(ODOCYCLE_ID);
+				Serial.println("Connected to server");
+				Serial.print("Requesting URL: ");
+				Serial.println(url.c_str());
+
+
+				// Make a HTTP request and add HTTP headers
+				String boundary = "SolarServerBoundaryjg2qVIUS8teOAbN3";
+				String contentType = "image/jpeg";
+				String portString = String(ODOCYCLE_PORT);
+				String hostString = String(ODOCYCLE_SERVER);
+				
+
+				// post header
+				String postHeader = "POST " + url + " HTTP/1.1\r\n";
+				postHeader += "Host: " + hostString + ":" + portString + "\r\n";
+				postHeader += "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n";
+				
+				// key header
+				String keyHeader = "--" + boundary + "\r\n";
+				keyHeader += "Content-Disposition: form-data; name=\"key\"\r\n\r\n";
+				keyHeader += "${filename}\r\n";
+
+				// request header
+				String requestHead = "--" + boundary + "\r\n";
+				requestHead += "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n";
+				requestHead += "Content-Type: " + contentType + "\r\n\r\n";
+
+				// request tail
+				String tail = "\r\n--" + boundary + "--\r\n\r\n";
+
+				// content length
+				int contentLength = keyHeader.length() + requestHead.length() + file.size() + tail.length();
+				postHeader += "Content-Length: " + String(contentLength, DEC) + "\n\n";
+
+				// send post header
+				char charBuf0[postHeader.length() + 1];
+				postHeader.toCharArray(charBuf0, postHeader.length() + 1);
+				client.write(charBuf0);
+				Serial.print(charBuf0);
+
+				// send key header
+				char charBufKey[keyHeader.length() + 1];
+				keyHeader.toCharArray(charBufKey, keyHeader.length() + 1);
+				client.write(charBufKey);
+				Serial.print(charBufKey);
+
+				// send request buffer
+				char charBuf1[requestHead.length() + 1];
+				requestHead.toCharArray(charBuf1, requestHead.length() + 1);
+				client.write(charBuf1);
+				Serial.print(charBuf1);
+
+				// create buffer
+				const int bufSize = 2048;
+				byte clientBuf[bufSize];
+				int clientCount = 0;
+
+				while (file.available()) {
+
+					clientBuf[clientCount] = file.read();
+
+					clientCount++;
+
+					if (clientCount > (bufSize - 1)) {
+						client.write((const uint8_t *)clientBuf, bufSize);
+						clientCount = 0;
+					}
+
+				}
+
+				if (clientCount > 0) {
+					client.write((const uint8_t *)clientBuf, clientCount);
+					Serial.println("Sent LAST buffer");
+				}
+
+				// send tail
+				char charBuf3[tail.length() + 1];
+				tail.toCharArray(charBuf3, tail.length() + 1);
+				client.write(charBuf3);
+				Serial.print(charBuf3);
+
+				// Read all the lines of the reply from server and print them to Serial
+				Serial.println("request sent");
+				String responseHeaders = "";
+
+				while (client.connected()) {
+				// Serial.println("while client connected");
+				String line = client.readStringUntil('\n');
+				Serial.println(line);
+				responseHeaders += line;
+				if (line == "\r") {
+					Serial.println("headers received");
+					break;
+				}
+				
+
+				String line = client.readStringUntil('\n');
+
+				Serial.println("reply was:");
+				Serial.println("==========");
+				Serial.println(line);
+				Serial.println("==========");
+				Serial.println("closing connection");
+
+				// close the file:
+				file.close();
+				//return responseHeaders;	
+			}
+		}
+
 	}
-
-
 }
