@@ -1,0 +1,298 @@
+2018-06-07 21:00:02.277 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:00:02.281 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:00:02.283 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 5.7822ms 200 text/html
+2018-06-07 21:03:02.352 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:03:02.355 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:03:02.357 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 5.6097ms 200 text/html
+2018-06-07 21:06:01.981 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:06:01.984 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:06:01.986 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.9326ms 200 text/html
+2018-06-07 21:09:01.610 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:09:01.614 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:09:01.618 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 7.4455ms 200 text/html
+2018-06-07 21:12:01.669 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:12:01.673 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:12:01.676 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 6.5897ms 200 text/html
+2018-06-07 21:15:07.326 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:15:07.330 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:15:07.333 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 6.7041ms 200 text/html
+2018-06-07 21:18:02.022 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:18:02.024 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:18:02.027 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.8562ms 200 text/html
+2018-06-07 21:21:01.588 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:21:01.591 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:21:01.593 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.7165ms 200 text/html
+2018-06-07 21:24:02.154 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:24:02.158 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:24:02.162 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 8.4096ms 200 text/html
+2018-06-07 21:27:01.822 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:27:01.826 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:27:01.829 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 6.2679ms 200 text/html
+2018-06-07 21:30:02.483 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:30:02.485 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:30:02.492 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 8.5827ms 200 text/html
+2018-06-07 21:33:02.400 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:33:02.402 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:33:02.404 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.5863ms 200 text/html
+2018-06-07 21:36:01.963 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:36:01.967 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:36:01.969 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 6.2638ms 200 text/html
+2018-06-07 21:37:12.805 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 POST http://ridestracker.azurewebsites.net/api/v1/Records/c0f6928d-cac5-4025-adc4-bad65f06b1d8 multipart/form-data; boundary=SolarServerBoundaryjg2qVIUS8teOAbN3 336
+2018-06-07 21:37:12.805 +00:00 [Information] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed for user: (null).
+2018-06-07 21:37:12.806 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Authorization failed for the request at filter 'Microsoft.AspNetCore.Mvc.Authorization.AuthorizeFilter'.
+2018-06-07 21:37:12.823 +00:00 [Information] Microsoft.AspNetCore.Mvc.ChallengeResult: Executing ChallengeResult with authentication schemes (Bearer).
+2018-06-07 21:37:12.907 +00:00 [Information] Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler: AuthenticationScheme: Bearer was challenged.
+2018-06-07 21:37:12.907 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executed action Odocycle.Api.Controllers.RecordsController.Add (Odocycle.Api) in 102.2398ms
+2018-06-07 21:37:12.907 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 102.6153ms 401 
+2018-06-07 21:39:01.588 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:39:01.592 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:39:01.594 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 6.1555ms 200 text/html
+2018-06-07 21:42:02.275 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:42:02.278 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:42:02.280 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.5289ms 200 text/html
+2018-06-07 21:45:01.845 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:45:01.847 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:45:01.849 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.7009ms 200 text/html
+2018-06-07 21:48:02.473 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:48:02.477 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:48:02.486 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 12.794ms 200 text/html
+2018-06-07 21:48:24.824 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 POST http://ridestracker.azurewebsites.net/api/v1/Records/c0f6928d-cac5-4025-adc4-bad65f06b1d8 multipart/form-data; boundary=SolarServerBoundaryjg2qVIUS8teOAbN3 335
+2018-06-07 21:48:24.825 +00:00 [Information] Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler: Successfully validated the token.
+2018-06-07 21:48:24.825 +00:00 [Information] Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler: AuthenticationScheme: Bearer was successfully authenticated.
+2018-06-07 21:48:24.825 +00:00 [Information] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization was successful for user: 9bd0c8f0-9e24-41e8-b906-6d270ac4ad7e.
+2018-06-07 21:48:24.884 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executing action method Odocycle.Api.Controllers.RecordsController.Add (Odocycle.Api) with arguments (c0f6928d-cac5-4025-adc4-bad65f06b1d8, ) - ModelState is Valid
+2018-06-07 21:48:24.885 +00:00 [Information] Microsoft.EntityFrameworkCore.Infrastructure: Entity Framework Core 2.0.2-rtm-10011 initialized 'OdocycleDbContext' using provider 'Npgsql.EntityFrameworkCore.PostgreSQL' with options: None
+2018-06-07 21:48:26.766 +00:00 [Information] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (568ms) [Parameters=[@__get_Item_0='?'], CommandType='Text', CommandTimeout='30']
+SELECT "e"."Id", "e"."AccessFailedCount", "e"."ConcurrencyStamp", "e"."Email", "e"."EmailConfirmed", "e"."LockoutEnabled", "e"."LockoutEnd", "e"."Nickname", "e"."NormalizedEmail", "e"."NormalizedUserName", "e"."PasswordHash", "e"."PhoneNumber", "e"."PhoneNumberConfirmed", "e"."SecurityStamp", "e"."TwoFactorEnabled", "e"."UserName"
+FROM "AspNetUsers" AS "e"
+WHERE "e"."Id" = @__get_Item_0
+LIMIT 1
+2018-06-07 21:48:26.767 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executed action Odocycle.Api.Controllers.RecordsController.Add (Odocycle.Api) in 1942.3846ms
+2018-06-07 21:48:26.789 +00:00 [Error] Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware: An unhandled exception has occurred: Object reference not set to an instance of an object.
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at Odocycle.Api.Controllers.RecordsController.<Add>d__6.MoveNext() in C:\Users\Honza\Dev\diplomka-server\Odocycle.Api\Controllers\RecordsController.cs:line 43
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeNextActionFilterAsync>d__10.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Rethrow(ActionExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeInnerFilterAsync>d__14.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextExceptionFilterAsync>d__23.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ExceptionContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextResourceFilter>d__22.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ResourceExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeFilterPipelineAsync>d__17.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeAsync>d__15.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Builder.RouterMiddleware.<Invoke>d__4.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.<Invoke>d__6.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware.<Invoke>d__6.MoveNext()
+2018-06-07 21:48:26.867 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executing action method Odocycle.Api.Controllers.ErrorController.HandleErrors (Odocycle.Api) with arguments ((null)) - ModelState is Valid
+2018-06-07 21:48:26.888 +00:00 [Error] Odocycle.Api.Controllers.ErrorController: Encountered unhandled exception. Route: /api/v1/Records/c0f6928d-cac5-4025-adc4-bad65f06b1d8. Message: Object reference not set to an instance of an object.. Stacktrace:
+   at Odocycle.Api.Controllers.RecordsController.<Add>d__6.MoveNext() in C:\Users\Honza\Dev\diplomka-server\Odocycle.Api\Controllers\RecordsController.cs:line 43
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeNextActionFilterAsync>d__10.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Rethrow(ActionExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeInnerFilterAsync>d__14.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextExceptionFilterAsync>d__23.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ExceptionContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextResourceFilter>d__22.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ResourceExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeFilterPipelineAsync>d__17.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeAsync>d__15.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Builder.RouterMiddleware.<Invoke>d__4.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.<Invoke>d__6.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware.<Invoke>d__6.MoveNext()
+2018-06-07 21:48:26.888 +00:00 [Information] Microsoft.AspNetCore.Mvc.StatusCodeResult: Executing HttpStatusCodeResult, setting HTTP status code 500
+2018-06-07 21:48:26.888 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executed action Odocycle.Api.Controllers.ErrorController.HandleErrors (Odocycle.Api) in 21.8227ms
+2018-06-07 21:48:26.915 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 2091.3212ms 500 
+2018-06-07 21:51:02.478 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:51:02.481 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:51:02.484 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 5.9979ms 200 text/html
+2018-06-07 21:51:44.331 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 POST http://ridestracker.azurewebsites.net/api/v1/Records/c0f6928d-cac5-4025-adc4-bad65f06b1d8 multipart/form-data; boundary=SolarServerBoundaryjg2qVIUS8teOAbN3 337
+2018-06-07 21:51:44.331 +00:00 [Information] Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler: Successfully validated the token.
+2018-06-07 21:51:44.331 +00:00 [Information] Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerHandler: AuthenticationScheme: Bearer was successfully authenticated.
+2018-06-07 21:51:44.331 +00:00 [Information] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization was successful for user: 9bd0c8f0-9e24-41e8-b906-6d270ac4ad7e.
+2018-06-07 21:51:44.389 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executing action method Odocycle.Api.Controllers.RecordsController.Add (Odocycle.Api) with arguments (c0f6928d-cac5-4025-adc4-bad65f06b1d8, ) - ModelState is Valid
+2018-06-07 21:51:44.389 +00:00 [Information] Microsoft.EntityFrameworkCore.Infrastructure: Entity Framework Core 2.0.2-rtm-10011 initialized 'OdocycleDbContext' using provider 'Npgsql.EntityFrameworkCore.PostgreSQL' with options: None
+2018-06-07 21:51:44.399 +00:00 [Information] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (9ms) [Parameters=[@__get_Item_0='?'], CommandType='Text', CommandTimeout='30']
+SELECT "e"."Id", "e"."AccessFailedCount", "e"."ConcurrencyStamp", "e"."Email", "e"."EmailConfirmed", "e"."LockoutEnabled", "e"."LockoutEnd", "e"."Nickname", "e"."NormalizedEmail", "e"."NormalizedUserName", "e"."PasswordHash", "e"."PhoneNumber", "e"."PhoneNumberConfirmed", "e"."SecurityStamp", "e"."TwoFactorEnabled", "e"."UserName"
+FROM "AspNetUsers" AS "e"
+WHERE "e"."Id" = @__get_Item_0
+LIMIT 1
+2018-06-07 21:51:44.400 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executed action Odocycle.Api.Controllers.RecordsController.Add (Odocycle.Api) in 68.8535ms
+2018-06-07 21:51:44.429 +00:00 [Error] Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware: An unhandled exception has occurred: Object reference not set to an instance of an object.
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at Odocycle.Api.Controllers.RecordsController.<Add>d__6.MoveNext() in C:\Users\Honza\Dev\diplomka-server\Odocycle.Api\Controllers\RecordsController.cs:line 43
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeNextActionFilterAsync>d__10.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Rethrow(ActionExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeInnerFilterAsync>d__14.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextExceptionFilterAsync>d__23.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ExceptionContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextResourceFilter>d__22.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ResourceExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeFilterPipelineAsync>d__17.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeAsync>d__15.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Builder.RouterMiddleware.<Invoke>d__4.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.<Invoke>d__6.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware.<Invoke>d__6.MoveNext()
+2018-06-07 21:51:44.503 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executing action method Odocycle.Api.Controllers.ErrorController.HandleErrors (Odocycle.Api) with arguments ((null)) - ModelState is Valid
+2018-06-07 21:51:44.528 +00:00 [Error] Odocycle.Api.Controllers.ErrorController: Encountered unhandled exception. Route: /api/v1/Records/c0f6928d-cac5-4025-adc4-bad65f06b1d8. Message: Object reference not set to an instance of an object.. Stacktrace:
+   at Odocycle.Api.Controllers.RecordsController.<Add>d__6.MoveNext() in C:\Users\Honza\Dev\diplomka-server\Odocycle.Api\Controllers\RecordsController.cs:line 43
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeNextActionFilterAsync>d__10.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Rethrow(ActionExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeInnerFilterAsync>d__14.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextExceptionFilterAsync>d__23.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ExceptionContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeNextResourceFilter>d__22.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Rethrow(ResourceExecutedContext context)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeFilterPipelineAsync>d__17.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Mvc.Internal.ResourceInvoker.<InvokeAsync>d__15.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Builder.RouterMiddleware.<Invoke>d__4.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.<Invoke>d__6.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware.<Invoke>d__6.MoveNext()
+2018-06-07 21:51:44.528 +00:00 [Information] Microsoft.AspNetCore.Mvc.StatusCodeResult: Executing HttpStatusCodeResult, setting HTTP status code 500
+2018-06-07 21:51:44.533 +00:00 [Information] Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker: Executed action Odocycle.Api.Controllers.ErrorController.HandleErrors (Odocycle.Api) in 30.0849ms
+2018-06-07 21:51:44.558 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 227.2704ms 500 
+2018-06-07 21:54:02.106 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request starting HTTP/1.1 GET http://ridestracker.azurewebsites.net/  0
+2018-06-07 21:54:02.108 +00:00 [Information] Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware: Sending file. Request path: '/index.html'. Physical path: 'D:\home\site\wwwroot\wwwroot\index.html'
+2018-06-07 21:54:02.111 +00:00 [Information] Microsoft.AspNetCore.Hosting.Internal.WebHost: Request finished in 4.5743ms 200 text/html

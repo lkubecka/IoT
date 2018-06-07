@@ -451,14 +451,14 @@ void testTask(void *pvParameter) {
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
 
-    kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-    kalfy::record::printAll(kalfy::record::TEST_FILE);
+    // kalfy::record::createTestFile(kalfy::record::TEST_FILE);
+    // kalfy::record::printAll(kalfy::record::TEST_FILE);
 
-    ESP_LOGI(TAG, "=== sendData called");
-    kalfy::BLE BLEupdater(kalfy::record::TEST_FILE);
-    BLEupdater.run();
-    ESP_LOGI(TAG, "sendData done");
-    notifier.setLow();
+    // ESP_LOGI(TAG, "=== sendData called");
+    // kalfy::BLE BLEupdater(kalfy::record::TEST_FILE);
+    // BLEupdater.run();
+    // ESP_LOGI(TAG, "sendData done");
+    // notifier.setLow();
 
     kalfy::files::detachSPIFFS();
     notifier.setLow();
@@ -474,7 +474,9 @@ void testTask(void *pvParameter) {
 void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
-    ESP_LOGI( TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
+    time_t t = lastActivityTime.tv_sec;
+	ESP_LOGI( TAG, "Last activity: %s", ctime(&t));
+   // ESP_LOGI( TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
     ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
@@ -526,7 +528,7 @@ void reedTask(void) {
                     notifier.setHigh();
                     revolutionsCounter.disable();
                     upload_status = TASK_RUNNING;
-                    xTaskCreate(&testTask, "onDemand", 8192, NULL, 6, NULL);
+                    xTaskCreate(&testTask, "onDemand", 20000, NULL, 6, NULL);
                     break;
                 }
                 case BLE_STARTED: {

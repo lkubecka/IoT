@@ -14,7 +14,7 @@
 #endif
 
 const int ODOCYCLE_PORT = 443;
-const char* ODOCYCLE_SERVER = "https://ridestracker.azurewebsites.net";
+const char* ODOCYCLE_SERVER = "ridestracker.azurewebsites.net";
 const char* ODOCYCLE_URL = "/api/v1/Records/";
 const char* ODOCYCLE_ID = "c0f6928d-cac5-4025-adc4-bad65f06b1d8";
 const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiI3ZmM2ODNmOC04ZWEwLTQzYjMtODM5YS1mYjkwMmQ1M2FmYmUiLCJleHAiOjE1MzA2OTQ4MjIsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.Nf1HgLzT9ZEq7cp-T99KMA9xlpFCIxU-K2J0HYXHAVE";
@@ -160,7 +160,7 @@ namespace kalfy
 			}
 
 			HTTPClient http;
-			http.begin(String(apiUrl) + deviceId, ca_cert);
+			http.begin(String(apiUrl) + String(deviceId), ca_cert);
 			http.addHeader("Content-Type", "multipart/form-data; boundary=5ed41908-0515-4f7f-ae1a-d3b2ebee72ea");
 			//http.addHeader("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW");
 			http.addHeader("Authorization", "Bearer " + String(token));
@@ -223,14 +223,14 @@ namespace kalfy
 
 				// try connect or return on fail
 				client.setCACert(ODOCYCLE_CERT);
-				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT)) {
-					Serial.println("https post connection failed");
+				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT, ODOCYCLE_CERT, NULL, NULL)) {
+					Serial.println("https POST connection failed");
 					//return String("Post Failure");
 					return;
 				}
 
 				// We now create a URI for the request
-				String url = String(ODOCYCLE_SERVER) + String(ODOCYCLE_URL) + String(ODOCYCLE_ID);
+				String url = String("https://")+String(ODOCYCLE_SERVER) + String(ODOCYCLE_URL) + String(ODOCYCLE_ID);
 				Serial.println("Connected to server");
 				Serial.print("Requesting URL: ");
 				Serial.println(url.c_str());
@@ -240,11 +240,12 @@ namespace kalfy
 				String boundary = "SolarServerBoundaryjg2qVIUS8teOAbN3";
 				String contentType = "form-data"; //"text/plain";
 				String portString = String(ODOCYCLE_PORT);
-				String hostString = String(ODOCYCLE_SERVER);
+				String hostString = String("https://") + String(ODOCYCLE_SERVER);
 				
 
 				// post header
 				String postHeader = "POST " + url + " HTTP/1.1\r\n";
+				postHeader += "Authorization: Bearer " + String(ODOCYCLE_TOKEN) + "\r\n";
 				postHeader += "Host: " + hostString + ":" + portString + "\r\n";
 				postHeader += "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n";
 				
