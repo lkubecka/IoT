@@ -129,12 +129,13 @@ namespace kalfy
             printAll(filename);
 			kalfy::files::deleteFile(filename);
 
-			const int32_t presure = 101250; 
+			int32_t presure = 101250; 
 			struct timeval now = kalfy::time::getCurrentTime();
 			
 			saveRevolution(now, filename);
 			savePressure(presure, filename);
 			now = kalfy::time::getCurrentTime();
+			presure = 101550; 
 			saveRevolution(now, filename);
 			savePressure(presure, filename);
 
@@ -186,15 +187,10 @@ namespace kalfy
 			ESP_LOGI(TAG, "== Upload complete");
 		}
 
-		void uploadMultipartFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename)
+		void uploadMultipartFile(const char * filename)
 		{
 			
 			ESP_LOGI(TAG, "=== uploadAll called");
-			if (apiUrl == nullptr || deviceId == nullptr)
-			{
-				ESP_LOGI(TAG,"Some of the arguments is null!");
-				return;
-			}
 
 			File file = kalfy::files::openFileForUpload(filename);
 			if (!file || file.size() == 0)
@@ -211,7 +207,7 @@ namespace kalfy
 
 			Serial.println();
 			Serial.println("file exists");
-			Serial.println(file);
+			Serial.println(fileName);
 
 			if (file) {
 
@@ -225,7 +221,6 @@ namespace kalfy
 				client.setCACert(ODOCYCLE_CERT);
 				if (!client.connect(ODOCYCLE_SERVER, ODOCYCLE_PORT, ODOCYCLE_CERT, NULL, NULL)) {
 					Serial.println("https POST connection failed");
-					//return String("Post Failure");
 					return;
 				}
 
@@ -238,7 +233,8 @@ namespace kalfy
 
 				// Make a HTTP request and add HTTP headers
 				String boundary = "xxBOUNDARYxx";
-				String contentType = "form-data"; //"text/plain";
+				//String contentType = "form-data"; //"text/plain";
+				String contentType = "text/plain";
 				String portString = String(ODOCYCLE_PORT);
 				String hostString = String("https://") + String(ODOCYCLE_SERVER);
 				
@@ -249,10 +245,10 @@ namespace kalfy
 				postHeader += "Host: " + hostString + ":" + portString + "\r\n";
 				postHeader += "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n";
 				
-				// key header
-				String keyHeader = "--" + boundary + "\r\n";
-				keyHeader += "Content-Disposition: form-data; name=\"record\"\r\n\r\n";
-				keyHeader += "${filename}\r\n";
+				// // key header
+				// String keyHeader = "--" + boundary + "\r\n";
+				// keyHeader += "Content-Disposition: form-data; name=\"record\"\r\n\r\n";
+				// keyHeader += "${filename}\r\n";
 
 				// request header
 				String requestHead = "--" + boundary + "\r\n";
@@ -263,7 +259,8 @@ namespace kalfy
 				String tail = "\r\n--" + boundary + "--\r\n\r\n";
 
 				// content length
-				int contentLength = keyHeader.length() + requestHead.length() + file.size() + tail.length();
+				//int contentLength = keyHeader.length() + requestHead.length() + file.size() + tail.length();
+				int contentLength = requestHead.length() + file.size() + tail.length();
 				postHeader += "Content-Length: " + String(contentLength, DEC) + "\n\n";
 
 				// send post header
@@ -272,11 +269,11 @@ namespace kalfy
 				client.write(charBuf0);
 				Serial.print(charBuf0);
 
-				// send key header
-				char charBufKey[keyHeader.length() + 1];
-				keyHeader.toCharArray(charBufKey, keyHeader.length() + 1);
-				client.write(charBufKey);
-				Serial.print(charBufKey);
+				// // send key header
+				// char charBufKey[keyHeader.length() + 1];
+				// keyHeader.toCharArray(charBufKey, keyHeader.length() + 1);
+				// client.write(charBufKey);
+				// Serial.print(charBufKey);
 
 				// send request buffer
 				char charBuf1[requestHead.length() + 1];
@@ -287,29 +284,27 @@ namespace kalfy
 				// create buffer
 				const int bufSize = 2048;
 				byte clientBuf[bufSize];
-				int clientCount = 0;
+				int bufferPosition = 0;
 
 				char printBuf[bufSize];
 
 				while (file.available()) {
+					// read bufSize byte big chunks from file and write them to client
+					file.read(&clientBuf[bufferPosition], 1);   // read 1 byte
 
-					clientBuf[clientCount] = file.read();
+					bufferPosition++;
 
-					clientCount++;
-
-					if (clientCount > (bufSize - 1)) {
+					if (bufferPosition > (bufSize - 1)) {     // when buffer is full, send it
 						client.write((const uint8_t *)clientBuf, bufSize);
-						strncpy(printBuf, (const char *)clientBuf, bufSize );
-						Serial.print(printBuf);
-						clientCount = 0;
+						Serial.print((const char *)clientBuf);
+						bufferPosition = 0;
 					}
 
 				}
 
-				if (clientCount > 0) {
-					client.write((const uint8_t *)clientBuf, clientCount);
-					strncpy(printBuf, (const char *)clientBuf, bufSize );
-					Serial.print(printBuf);
+				if (bufferPosition > 0) {
+					client.write((const uint8_t *)clientBuf, bufferPosition);
+					Serial.print((const char *)clientBuf);
 				}
 
 				// send tail

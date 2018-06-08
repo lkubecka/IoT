@@ -19,7 +19,7 @@ namespace kalfy
 		void saveRevolution(timeval &timestamp, const char * filename);
 		void uploadAll(const char * apiUrl, const char * deviceId, const char* token, const char * ca_cert);
 		void uploadFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename);
-		void uploadMultipartFile(const char * apiUrl, const char * deviceId, const char * token, const char * ca_cert, const char * filename);
+		void uploadMultipartFile(const char * filename);
 		void _saveDate(timeval & dateNow);
 		void savePressure(int32_t pressurePa, const char * filename);
 		bool hasData(const char * filename);

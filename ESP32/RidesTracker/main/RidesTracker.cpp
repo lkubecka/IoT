@@ -48,7 +48,7 @@
 
 
 
-#define WAKE_UP_TIME_SEC (60*5)
+#define WAKE_UP_TIME_SEC (60*60*5)  // once in 5 hours
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
 #define DAYLIGHT_SAVING_MINS 60
 
@@ -58,6 +58,8 @@ const gpio_num_t WIFI_BUTTON_PIN = GPIO_NUM_14;
 const gpio_num_t BLE_BUTTON_PIN = GPIO_NUM_26;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
 const gpio_num_t LED_PIN = GPIO_NUM_2;
+
+const int MAX_STACK_SIZE = 8192;
 
 static const char* TAG = "RideTracker";
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
@@ -71,9 +73,6 @@ static float batteryVoltage = 0;
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
-
-
-
 
 enum upload_status_t {
     IDLE,
@@ -143,6 +142,9 @@ void goToSleep(void) {
 }
 
 void setLastKnownTime() {
+    nvs_flash_init();
+    vTaskDelay(1000 / portTICK_RATE_MS);
+
     preferences.begin("RidezTracker", false);
 	unsigned int resetTimes = preferences.getUInt("resetTimes", 0);
 	resetTimes++;
@@ -170,47 +172,6 @@ void setLastKnownTime() {
 	preferences.end();
 
     lastActivityTime = kalfy::time::getCurrentTime();
-}
-
-void uploadTask(void *pvParameter)
-{
-
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
-
-    kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::DESTINATION_FILE);
-
-    vTaskDelay(2000 / portTICK_RATE_MS);
-
-    vTaskDelete(NULL);   
-}
-
-void uploadTestTask(void *pvParameter)
-{
-
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); 
-
-    kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
-
-    vTaskDelay(2000 / portTICK_RATE_MS);
-
-    vTaskDelete(NULL);   
-}
-
-void periodicTask(void) {
-    Notifier notifier(LED_PIN);
-    kalfy::files::initSPIFFS();
-    nvs_flash_init();
-
-    notifier.setHigh();
-    kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
-    ESP_LOGI(TAG, "=== sendData called");
-    kalfy::BLE BLEupdater(kalfy::record::DESTINATION_FILE);
-    BLEupdater.run();
-    ESP_LOGI(TAG, "sendData done");
-    notifier.setLow();
-    
-    goToSleep();
-    
 }
 
 void getBatteryVoltage(float *batteryVoltage) {
@@ -319,36 +280,42 @@ void getAliveData(alive_report_item_t & report) {
 }
 
 
+void periodicTask(void *pvParameter) {
+    Notifier notifier(LED_PIN);
 
-File root;
-//these callbacks will be invoked to read and write data to sdcard
-//and process response
-//and showing progress 
-int responsef(uint8_t *buffer, int len){
-  Serial.printf("%s\n", buffer);
-  return 0;
-}
+    kalfy::files::initSPIFFS();
+    nvs_flash_init();
 
-int rdataf(uint8_t *buffer, int len){
-  //read file to upload
-  if (root.available()) {
-    return root.read(buffer, len);
-  }
-  return 0;
-}
+    vTaskDelay(1000 / portTICK_RATE_MS);
 
-int wdataf(uint8_t *buffer, int len){
-  //write downloaded data to file
-  return root.write(buffer, len);
-}
+    notifier.setHigh();
+    if (connectWifiManual() ) {
+        
+        updateTime();    
 
-void progressf(int percent){
-  Serial.printf("%d\n", percent);
+        vTaskDelay(2000 / portTICK_RATE_MS);
+
+        kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
+
+        alive_report_item_t report = {{0L,0L}, 0, 0.0};
+        getAliveData(report);
+        reportAlive(report);
+
+        kalfy::record::uploadMultipartFile(kalfy::record::DESTINATION_FILE);
+        kalfy::record::clear(kalfy::record::DESTINATION_FILE); 
+
+        disconnectWifi();
+
+        vTaskDelay(2000 / portTICK_RATE_MS);
+    }
+       
+    goToSleep();
+    
 }
 
 void WifiTask(void *pvParameter) {
   // put your setup code here, to run once:
-  Serial.begin(115200);
+    Serial.begin(115200);
     Notifier notifier(LED_PIN);
 
     kalfy::files::initSPIFFS();
@@ -384,29 +351,9 @@ void BLETask(void *pvParameter) {
 
     kalfy::files::initSPIFFS();
     nvs_flash_init();
-
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     notifier.setHigh();
-    // if (connectWifiManual() ) {
-        
-    //     updateTime();    
-
-    //     vTaskDelay(2000 / portTICK_RATE_MS);
-    //     kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
-
-    //     alive_report_item_t report = {{0L,0L}, 0, 0.0};
-    //     getAliveData(report);
-    //     reportAlive(report);
-
-    //     kalfy::record::uploadFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TESDESTINATION_FILET_FILE);
-    //     disconnectWifi();
-    //     upload_status = TASK_FINISHED;
-
-    //     vTaskDelay(2000 / portTICK_RATE_MS);
-    // }
-    //kalfy::record::clear(kalfy::record::DESTINATION_FILE);
-    kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
 
     ESP_LOGI(TAG, "=== sendData called");
     kalfy::BLE BLEupdater(kalfy::record::DESTINATION_FILE);
@@ -445,7 +392,7 @@ void testTask(void *pvParameter) {
         getAliveData(report);
         reportAlive(report);
 
-        kalfy::record::uploadMultipartFile(ODOCYCLE_SERVER, ODOCYCLE_ID, ODOCYCLE_TOKEN, ODOCYCLE_CERT, kalfy::record::TEST_FILE);
+        kalfy::record::uploadMultipartFile(kalfy::record::TEST_FILE);
         disconnectWifi();
 
         vTaskDelay(2000 / portTICK_RATE_MS);
@@ -467,16 +414,11 @@ void testTask(void *pvParameter) {
     vTaskDelete(NULL);  
 }
 
-
-
-
-
 void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
     time_t t = lastActivityTime.tv_sec;
 	ESP_LOGI( TAG, "Last activity: %s", ctime(&t));
-   // ESP_LOGI( TAG, "Last activity: %ld sec|%ld us\n", lastActivityTime.tv_sec, lastActivityTime.tv_usec);
     ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
@@ -499,8 +441,9 @@ void saveRotationTask(void *pvParameter)
             char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
 			kalfy::record::saveRevolution(msg.time, kalfy::record::DESTINATION_FILE);	
-			kalfy::record::savePressure(presure, kalfy::record::DESTINATION_FILE);
-
+            if (presure > 1000) {
+			    kalfy::record::savePressure(presure, kalfy::record::DESTINATION_FILE);
+            }
             lastActivityTime = msg.time;
 
             Notifier * notifier = static_cast<Notifier *>(pvParameter);
@@ -511,7 +454,7 @@ void saveRotationTask(void *pvParameter)
 	}
 }
 
-void reedTask(void) {
+void reedTask(void *pvParameter) {
     RevolutionsCounter revolutionsCounter(REED_PIN); 
     Button WifiButton(WIFI_BUTTON_PIN);
     Button BLEButton(BLE_BUTTON_PIN);
@@ -528,14 +471,14 @@ void reedTask(void) {
                     notifier.setHigh();
                     revolutionsCounter.disable();
                     upload_status = TASK_RUNNING;
-                    xTaskCreate(&testTask, "onDemand", 20000, NULL, 6, NULL);
+                    xTaskCreate(&periodicTask, "onDemand", MAX_STACK_SIZE, NULL, 6, NULL);
                     break;
                 }
                 case BLE_STARTED: {
                     notifier.setHigh();
                     revolutionsCounter.disable();
                     upload_status = TASK_RUNNING;
-                    xTaskCreate(&BLETask, "onDemand", 8192, NULL, 6, NULL);
+                    xTaskCreate(&BLETask, "onDemand", MAX_STACK_SIZE, NULL, 6, NULL);
                     break;
                 }
                 case TASK_RUNNING: {
@@ -584,8 +527,8 @@ void reedTask(void) {
 
 }
 
-void defaultTask(void) {
-    reedTask();
+void defaultTask(void *pvParameter) {
+    reedTask(NULL);
 }
 
 
@@ -599,35 +542,35 @@ void executeStartupMode(void) {
                 printf("--- Wake up from GPIO %d\n", pin);
                 switch (pin) {
                     case WIFI_BUTTON_PIN: {
-                        testTask(NULL);
+                        xTaskCreate(&periodicTask, "WifiTask", MAX_STACK_SIZE, NULL, 6, NULL);
                         break; 
                     }
                     case BLE_BUTTON_PIN: {
-                        BLETask(NULL);
+                        xTaskCreate(&BLETask, "BleTask", MAX_STACK_SIZE, NULL, 6, NULL);
                         break; 
                     }
                     case REED_PIN: {
-                       reedTask(); 
-                       break; 
+                        xTaskCreate(&reedTask, "reedTask", MAX_STACK_SIZE, NULL, 6, NULL);
+                        break; 
                     }           
                     default: {
-                        defaultTask();
+                        xTaskCreate(&defaultTask, "defaultTask", MAX_STACK_SIZE, NULL, 6, NULL);
                     }    
                 }    
             } else {
                 printf("--- Wake up from GPIO\n");
-                defaultTask();
+                xTaskCreate(&defaultTask, "defaultTask", MAX_STACK_SIZE, NULL, 6, NULL);
             }
             break;
         }
         case ESP_SLEEP_WAKEUP_TIMER: {
             printf("--- Wake up from timer.\n");
-            periodicTask();
+            xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
             break;
         }
         default: {
             printf("--- Not a deep sleep restart!\n");
-            defaultTask();
+            xTaskCreate(&defaultTask, "defaultTask", MAX_STACK_SIZE, NULL, 6, NULL);
         }
     }
 }
@@ -637,9 +580,9 @@ void app_main()
     Serial.begin(115200);
 
     initArduino();
-    nvs_flash_init();
     setLastKnownTime();
-    executeStartupMode();    
+    executeStartupMode(); 
+    vTaskDelete(NULL);   
 }
 
 
