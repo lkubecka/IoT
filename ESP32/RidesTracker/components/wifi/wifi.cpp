@@ -104,13 +104,13 @@ bool connectWifiManual(void) {
         WiFi.enableSTA(true);
     
 		WiFi.begin(connection.getSSID(), connection.getPassword());
-        for (int tmout = 0; tmout < WIFI_CONNECTION_TMOUT; tmout++ ) {
+        for (int tmout = WIFI_CONNECTION_TMOUT; tmout > 0; tmout-- ) {
             if (WiFi.status() == WL_CONNECTED) {
                 ESP_LOGI(TAG, "WiFi connected, IP address:  %s", WiFi.localIP());
                 return true;
             }
             else {
-                ESP_LOGI(TAG, "WiFi connection attempted: %d", tmout);
+                ESP_LOGI(TAG, "WiFi connection timeout: %d", tmout);
                 
             }
             vTaskDelay(1000 / portTICK_PERIOD_MS);

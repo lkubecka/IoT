@@ -16,7 +16,7 @@
 const int ODOCYCLE_PORT = 443;
 const char* ODOCYCLE_SERVER = "ridestracker.azurewebsites.net";
 const char* ODOCYCLE_URL = "/api/v1/Records/";
-const char* ODOCYCLE_ID = "c0f6928d-cac5-4025-adc4-bad65f06b1d8";
+const char* ODOCYCLE_ID = "4f931a53-6e1b-4e85-bbda-7c71d9f8f2b9";
 const char* ODOCYCLE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmQwYzhmMC05ZTI0LTQxZTgtYjkwNi02ZDI3MGFjNGFkN2UiLCJqdGkiOiI3ZmM2ODNmOC04ZWEwLTQzYjMtODM5YS1mYjkwMmQ1M2FmYmUiLCJleHAiOjE1MzA2OTQ4MjIsImlzcyI6ImF6dXJlLWRldiIsImF1ZCI6ImF6dXJlLWRldiJ9.Nf1HgLzT9ZEq7cp-T99KMA9xlpFCIxU-K2J0HYXHAVE";
 
 const char* ODOCYCLE_CERT = \
@@ -237,7 +237,7 @@ namespace kalfy
 
 
 				// Make a HTTP request and add HTTP headers
-				String boundary = "SolarServerBoundaryjg2qVIUS8teOAbN3";
+				String boundary = "xxBOUNDARYxx";
 				String contentType = "form-data"; //"text/plain";
 				String portString = String(ODOCYCLE_PORT);
 				String hostString = String("https://") + String(ODOCYCLE_SERVER);
@@ -256,7 +256,7 @@ namespace kalfy
 
 				// request header
 				String requestHead = "--" + boundary + "\r\n";
-				requestHead += "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n";
+				requestHead += "Content-Disposition: form-data; name=\"record\"; filename=\"" + fileName + "\"\r\n";
 				requestHead += "Content-Type: " + contentType + "\r\n\r\n";
 
 				// request tail
@@ -289,6 +289,8 @@ namespace kalfy
 				byte clientBuf[bufSize];
 				int clientCount = 0;
 
+				char printBuf[bufSize];
+
 				while (file.available()) {
 
 					clientBuf[clientCount] = file.read();
@@ -297,6 +299,8 @@ namespace kalfy
 
 					if (clientCount > (bufSize - 1)) {
 						client.write((const uint8_t *)clientBuf, bufSize);
+						strncpy(printBuf, (const char *)clientBuf, bufSize );
+						Serial.print(printBuf);
 						clientCount = 0;
 					}
 
@@ -304,7 +308,8 @@ namespace kalfy
 
 				if (clientCount > 0) {
 					client.write((const uint8_t *)clientBuf, clientCount);
-					Serial.println("Sent LAST buffer");
+					strncpy(printBuf, (const char *)clientBuf, bufSize );
+					Serial.print(printBuf);
 				}
 
 				// send tail
