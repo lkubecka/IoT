@@ -47,8 +47,11 @@
 #include "bluetooth.hpp"
 
 
+const uint64_t uS_TO_S_FACTOR = 1000000;
+const uint64_t mS_TO_S_FACTOR = 1000;
+const uint64_t WAKE_UP_TIME_SEC = (5*60);  // once in 5 minutes
+const uint64_t POST_DATA_PERIOD_SEC = (5*60*60);  // once in 5 hours
 
-#define WAKE_UP_TIME_SEC (60*60*5)  // once in 5 hours
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
 #define DAYLIGHT_SAVING_MINS 60
 
@@ -103,7 +106,7 @@ void printLocalTime()
 void goToSleep(void) {
     ESP_LOGI( TAG, "Going to sleep\n");
     ESP_LOGI( TAG, "Enabling timer wakeup, %ds\n", WAKE_UP_TIME_SEC);
-    esp_sleep_enable_timer_wakeup(WAKE_UP_TIME_SEC * 1000000);
+    esp_sleep_enable_timer_wakeup(WAKE_UP_TIME_SEC * uS_TO_S_FACTOR);
 
     const uint64_t reed_mask = 1ULL << REED_PIN;
     const uint64_t wifi_mask = 1ULL << WIFI_BUTTON_PIN;
@@ -141,6 +144,40 @@ void goToSleep(void) {
     esp_deep_sleep_start();
 }
 
+void retreiveTimeWhenPost(struct timeval *time_when_post) {
+    nvs_flash_init();
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    preferences.begin("RidezTracker", false);
+    preferences.getBytes("time_when_post", time_when_post, sizeof(*time_when_post));
+    preferences.end();
+
+}
+
+void printTimeDifference(uint64_t n) {
+    int days = n / (24 * 3600);
+    n = n % (24 * 3600);
+    int hours = n / 3600;
+    n %= 3600;
+    int min = n / 60 ;
+    n %= 60;
+    int sec = n;
+    ESP_LOGI(TAG, "Time spent from last data posting: %02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
+}
+bool isTimeToSendData() {
+    struct timeval time_when_post;
+    retreiveTimeWhenPost(&time_when_post);
+    struct timeval now = kalfy::time::getCurrentTime();
+    struct timeval delta = kalfy::time::sub(&now, &time_when_post);
+    printTimeDifference(delta.tv_sec);
+
+    if (delta.tv_sec > POST_DATA_PERIOD_SEC ) {
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
 void setLastKnownTime() {
     nvs_flash_init();
     vTaskDelay(1000 / portTICK_RATE_MS);
@@ -151,6 +188,8 @@ void setLastKnownTime() {
 	ESP_LOGI( TAG, "Number of restart times: %d\n", resetTimes);
 	preferences.putUInt("resetTimes", resetTimes);
 
+    struct timeval sleep_enter_time;
+    preferences.getBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
     struct timeval now = kalfy::time::getCurrentTime();
     struct timeval delta = kalfy::time::sub(&now, &sleep_enter_time);
     ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
@@ -279,6 +318,16 @@ void getAliveData(alive_report_item_t & report) {
     report.timestamp = kalfy::time::getCurrentTime();
 }
 
+void storeTimeWhenPost() {
+    nvs_flash_init();
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    struct timeval time_when_post;
+    gettimeofday(&time_when_post, NULL);
+    preferences.begin("RidezTracker", false);
+    preferences.putBytes("time_when_post", &time_when_post, sizeof(time_when_post));
+    preferences.end();
+}
+
 
 void periodicTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
@@ -303,6 +352,8 @@ void periodicTask(void *pvParameter) {
 
         kalfy::record::uploadMultipartFile(kalfy::record::DESTINATION_FILE);
         kalfy::record::clear(kalfy::record::DESTINATION_FILE); 
+
+        storeTimeWhenPost();
 
         disconnectWifi();
 
@@ -565,7 +616,10 @@ void executeStartupMode(void) {
         }
         case ESP_SLEEP_WAKEUP_TIMER: {
             printf("--- Wake up from timer.\n");
-            xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
+            if (isTimeToSendData()) {
+                xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
+            }
+            goToSleep();
             break;
         }
         default: {
