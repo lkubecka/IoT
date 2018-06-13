@@ -50,7 +50,7 @@
 const uint64_t uS_TO_S_FACTOR = 1000000;
 const uint64_t mS_TO_S_FACTOR = 1000;
 const uint64_t WAKE_UP_TIME_SEC = (5*60);  // once in 5 minutes
-const uint64_t POST_DATA_PERIOD_SEC = (5*60*60);  // once in 5 hours
+const uint64_t POST_DATA_PERIOD_SEC = (1*60*60);  // once in 1 hours
 
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
 #define DAYLIGHT_SAVING_MINS 60
@@ -351,8 +351,6 @@ void periodicTask(void *pvParameter) {
         reportAlive(report);
 
         kalfy::record::uploadMultipartFile(kalfy::record::DESTINATION_FILE);
-        kalfy::record::clear(kalfy::record::DESTINATION_FILE); 
-
         storeTimeWhenPost();
 
         disconnectWifi();

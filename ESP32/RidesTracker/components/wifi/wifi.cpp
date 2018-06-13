@@ -29,7 +29,6 @@ const int WIFI_CONNECTION_TMOUT = 10;
 std::vector<Configuration> connections = {  
     Configuration("sde-guest", "4Our6uest"),
     Configuration("NAHATCH", "nahatch123"),    
-   
     Configuration("NAHATCH", "nahatch123")
 };
 
@@ -106,7 +105,7 @@ bool connectWifiManual(void) {
 		WiFi.begin(connection.getSSID(), connection.getPassword());
         for (int tmout = WIFI_CONNECTION_TMOUT; tmout > 0; tmout-- ) {
             if (WiFi.status() == WL_CONNECTED) {
-                ESP_LOGI(TAG, "WiFi connected, IP address:  %s", WiFi.localIP());
+                ESP_LOGI(TAG, "WiFi connected, IP address:  %s", WiFi.localIP().toString().c_str());
                 return true;
             }
             else {

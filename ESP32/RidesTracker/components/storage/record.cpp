@@ -318,27 +318,38 @@ namespace kalfy
 				String responseHeaders = "";
 
 				while (client.connected()) {
-					// Serial.println("while client connected");
 					String line = client.readStringUntil('\n');
 					Serial.println(line);
 					responseHeaders += line;
 					if (line == "\r") {
-						Serial.println("headers received");
 						break;
 					}
 				}
-				
-				String line = client.readStringUntil('\n');
 
-				Serial.println("reply was:");
-				Serial.println("==========");
-				Serial.println(line);
-				Serial.println("==========");
-				Serial.println("closing connection");
+				String response = client.readStringUntil('\n');
+				String httpProtocol = "HTTP/1.1";
+				String createdResponse = "201";
+				int httpProtocolPosition = responseHeaders.indexOf(httpProtocol);
+				int httpCodePosition = httpProtocolPosition+httpProtocol.length()+1;
+				Serial.println(httpCodePosition);
+				String httpResponseCode = responseHeaders.substring(httpCodePosition,httpCodePosition+createdResponse.length());
 
-				// close the file:
-				file.close();
-				//return responseHeaders;	
+				ESP_LOGI(TAG, "HTTP response code:");
+				ESP_LOGI(TAG, "%s", httpResponseCode.c_str());
+				ESP_LOGI(TAG, "HTTP response body:");
+				ESP_LOGI(TAG, "%s", response.c_str());
+
+				if (httpResponseCode.toInt() == 201)
+				{
+					ESP_LOGI(TAG, "== Data sent successfully, deleting file %s", DESTINATION_FILE);
+					kalfy::files::uploadSucceeded(file, DESTINATION_FILE);
+				}
+				else
+				{
+
+					ESP_LOGI(TAG, "== Sending to server failed");
+					kalfy::files::uploadFailed(file);
+				}
 			}
 		}
 
