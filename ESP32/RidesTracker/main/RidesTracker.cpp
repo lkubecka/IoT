@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
-#include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
@@ -39,17 +38,16 @@
 #include "Button.hpp"
 
 #include "Arduino.h"
-#include <HTTPClient.h>
-
 #include "record.hpp"
 #include "files.hpp"
 #include "time.hpp"
 #include "bluetooth.hpp"
+#include "thingsboardPoster.hpp"
 
 
 const uint64_t uS_TO_S_FACTOR = 1000000;
 const uint64_t mS_TO_S_FACTOR = 1000;
-const uint64_t WAKE_UP_TIME_SEC = (5*60);  // once in 5 minutes
+const uint64_t WAKE_UP_TIME_SEC = (1*60);  // once in 1 minutes
 const uint64_t POST_DATA_PERIOD_SEC = (1*60*60);  // once in 1 hours
 
 #define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
@@ -88,6 +86,10 @@ enum upload_status_t {
 upload_status = IDLE;
 
 SemaphoreHandle_t xSemaphore = NULL;
+
+using namespace kalfy::time;
+using namespace kalfy::record;
+using namespace kalfy::files;
 
 #ifdef __cplusplus
 extern "C" {
@@ -153,29 +155,14 @@ void retreiveTimeWhenPost(struct timeval *time_when_post) {
 
 }
 
-void printTimeDifference(uint64_t n) {
-    int days = n / (24 * 3600);
-    n = n % (24 * 3600);
-    int hours = n / 3600;
-    n %= 3600;
-    int min = n / 60 ;
-    n %= 60;
-    int sec = n;
-    ESP_LOGI(TAG, "Time spent from last data posting: %02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
-}
 bool isTimeToSendData() {
     struct timeval time_when_post;
     retreiveTimeWhenPost(&time_when_post);
-    struct timeval now = kalfy::time::getCurrentTime();
-    struct timeval delta = kalfy::time::sub(&now, &time_when_post);
+    struct timeval now = getCurrentTime();
+    struct timeval delta = sub(&now, &time_when_post);
     printTimeDifference(delta.tv_sec);
 
-    if (delta.tv_sec > POST_DATA_PERIOD_SEC ) {
-        return true;
-    } else {
-        return false;
-    }
-
+    return (delta.tv_sec > POST_DATA_PERIOD_SEC );
 }
 
 void setLastKnownTime() {
@@ -190,9 +177,9 @@ void setLastKnownTime() {
 
     struct timeval sleep_enter_time;
     preferences.getBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
-    struct timeval now = kalfy::time::getCurrentTime();
-    struct timeval delta = kalfy::time::sub(&now, &sleep_enter_time);
-    ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", kalfy::time::toMiliSecs(&delta));
+    struct timeval now = getCurrentTime();
+    struct timeval delta = sub(&now, &sleep_enter_time);
+    ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", toMiliSecs(&delta));
     
     time_t t = time(NULL);
     printf("Current date/time: %s", ctime(&t));
@@ -210,7 +197,7 @@ void setLastKnownTime() {
 
 	preferences.end();
 
-    lastActivityTime = kalfy::time::getCurrentTime();
+    lastActivityTime = getCurrentTime();
 }
 
 void getBatteryVoltage(float *batteryVoltage) {
@@ -219,87 +206,12 @@ void getBatteryVoltage(float *batteryVoltage) {
     *batteryVoltage = 1.05*(122.0/22.0)*adc1_get_raw(ADC_CHANNEL)/4096;
 }
 
-
-const char* THINGSBOARD_SERVER = "http://demo.thingsboard.io/api/v1/WLN5UNEzcFUWA9qvgRnX/telemetry";
-const char* THINGSBOARD_ID = "659b6670-600b-11e8-9588-c3b186e30863";
-const char* THINGSBOARD_TOKEN = "WLN5UNEzcFUWA9qvgRnX";
-const char* THINGSBOARD_CERT = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIEkjCCA3qgAwIBAgIQCgFBQgAAAVOFc2oLheynCDANBgkqhkiG9w0BAQsFADA/\n" \
-"MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n" \
-"DkRTVCBSb290IENBIFgzMB4XDTE2MDMxNzE2NDA0NloXDTIxMDMxNzE2NDA0Nlow\n" \
-"SjELMAkGA1UEBhMCVVMxFjAUBgNVBAoTDUxldCdzIEVuY3J5cHQxIzAhBgNVBAMT\n" \
-"GkxldCdzIEVuY3J5cHQgQXV0aG9yaXR5IFgzMIIBIjANBgkqhkiG9w0BAQEFAAOC\n" \
-"AQ8AMIIBCgKCAQEAnNMM8FrlLke3cl03g7NoYzDq1zUmGSXhvb418XCSL7e4S0EF\n" \
-"q6meNQhY7LEqxGiHC6PjdeTm86dicbp5gWAf15Gan/PQeGdxyGkOlZHP/uaZ6WA8\n" \
-"SMx+yk13EiSdRxta67nsHjcAHJyse6cF6s5K671B5TaYucv9bTyWaN8jKkKQDIZ0\n" \
-"Z8h/pZq4UmEUEz9l6YKHy9v6Dlb2honzhT+Xhq+w3Brvaw2VFn3EK6BlspkENnWA\n" \
-"a6xK8xuQSXgvopZPKiAlKQTGdMDQMc2PMTiVFrqoM7hD8bEfwzB/onkxEz0tNvjj\n" \
-"/PIzark5McWvxI0NHWQWM6r6hCm21AvA2H3DkwIDAQABo4IBfTCCAXkwEgYDVR0T\n" \
-"AQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAYYwfwYIKwYBBQUHAQEEczBxMDIG\n" \
-"CCsGAQUFBzABhiZodHRwOi8vaXNyZy50cnVzdGlkLm9jc3AuaWRlbnRydXN0LmNv\n" \
-"bTA7BggrBgEFBQcwAoYvaHR0cDovL2FwcHMuaWRlbnRydXN0LmNvbS9yb290cy9k\n" \
-"c3Ryb290Y2F4My5wN2MwHwYDVR0jBBgwFoAUxKexpHsscfrb4UuQdf/EFWCFiRAw\n" \
-"VAYDVR0gBE0wSzAIBgZngQwBAgEwPwYLKwYBBAGC3xMBAQEwMDAuBggrBgEFBQcC\n" \
-"ARYiaHR0cDovL2Nwcy5yb290LXgxLmxldHNlbmNyeXB0Lm9yZzA8BgNVHR8ENTAz\n" \
-"MDGgL6AthitodHRwOi8vY3JsLmlkZW50cnVzdC5jb20vRFNUUk9PVENBWDNDUkwu\n" \
-"Y3JsMB0GA1UdDgQWBBSoSmpjBH3duubRObemRWXv86jsoTANBgkqhkiG9w0BAQsF\n" \
-"AAOCAQEA3TPXEfNjWDjdGBX7CVW+dla5cEilaUcne8IkCJLxWh9KEik3JHRRHGJo\n" \
-"uM2VcGfl96S8TihRzZvoroed6ti6WqEBmtzw3Wodatg+VyOeph4EYpr/1wXKtx8/\n" \
-"wApIvJSwtmVi4MFU5aMqrSDE6ea73Mj2tcMyo5jMd6jmeWUHK8so/joWUoHOUgwu\n" \
-"X4Po1QYz+3dszkDqMp4fklxBwXRsW10KXzPMTZ+sOPAveyxindmjkW8lGy+QsRlG\n" \
-"PfZ+G6Z6h7mjem0Y+iWlkYcV4PIWL1iwBi8saCbGS5jN2p8M+X+Q7UNKEkROb3N6\n" \
-"KOqkqm57TH2H3eDJAkSnh6/DNFu0Qg==\n" \
-"-----END CERTIFICATE-----\n";
-
-typedef struct alive_report_item_t {
-    struct timeval timestamp;
-    uint32_t presure;
-    float voltage;
-} alive_report_item_t;
-
-void reportAlive(alive_report_item_t &report) {
-    HTTPClient http;
-    http.begin(String(THINGSBOARD_SERVER)); //THINGSBOARD_CERT
-    http.addHeader("Content-Type", "application/json");
-
-    char timestamp[20];
-    kalfy::time::toMiliSecsStr(&(report.timestamp), timestamp);
-    timestamp[14] = '\0';
-   
-    String payload = "{";
-    payload += "\"ts\":"; payload += timestamp; payload += ",";
-    payload += "\"values\": {"; 
-    payload += "\"battery\":"; payload += report.voltage ; payload += ",";
-    payload += "\"presure\":"; payload += report.presure;
-    payload += "}}";
-
-    // Send payload
-    char attributes[120];
-    payload.toCharArray( attributes, 120);
-    if (payload.length() > 120) {
-        ESP_LOGE(TAG, "Max payload is 120 Bytes, %d requested", payload.length());
-    }
-
-    ESP_LOGI(TAG, "Server: %s", THINGSBOARD_SERVER);
-    ESP_LOGI(TAG, "Payload: \n%s", payload.c_str());
-
-    int httpResponseCode = http.sendRequest("POST", payload);
-    if (httpResponseCode == 201)
-    {
-        ESP_LOGI(TAG, "== Data sent successfully");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "== Sending to server failed");
-        String response = http.getString();
-        ESP_LOGI(TAG, "HTTP response code:");
-        ESP_LOGI(TAG, "%d", httpResponseCode);
-        ESP_LOGI(TAG, "HTTP response body:");
-        ESP_LOGI(TAG, "%s", response);
-    }
-    http.end();
-    ESP_LOGI(TAG, "== Upload complete");
+void getAliveData(alive_report_item_t & report) {
+    initAltimeter();
+    vTaskDelay(2000 / portTICK_RATE_MS);
+    getAltitude(&(report.presure));
+    getBatteryVoltage(&(report.voltage));
+    report.timestamp = getCurrentTime();
 }
 
 void updateTime(void) {
@@ -308,14 +220,6 @@ void updateTime(void) {
     preferences.begin("RidezTracker", false);
     preferences.putBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
     preferences.end();
-}
-
-void getAliveData(alive_report_item_t & report) {
-    initAltimeter();
-    vTaskDelay(2000 / portTICK_RATE_MS);
-    getAltitude(&(report.presure));
-    getBatteryVoltage(&(report.voltage));
-    report.timestamp = kalfy::time::getCurrentTime();
 }
 
 void storeTimeWhenPost() {
@@ -332,9 +236,9 @@ void storeTimeWhenPost() {
 void periodicTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
 
-    kalfy::files::initSPIFFS();
     nvs_flash_init();
-
+    initSPIFFS();
+    
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     notifier.setHigh();
@@ -344,13 +248,13 @@ void periodicTask(void *pvParameter) {
 
         vTaskDelay(2000 / portTICK_RATE_MS);
 
-        kalfy::record::printAll(kalfy::record::DESTINATION_FILE);
+        printAll(DESTINATION_FILE);
 
         alive_report_item_t report = {{0L,0L}, 0, 0.0};
         getAliveData(report);
         reportAlive(report);
 
-        kalfy::record::uploadMultipartFile(kalfy::record::DESTINATION_FILE);
+        uploadMultipartFile(DESTINATION_FILE);
         storeTimeWhenPost();
 
         disconnectWifi();
@@ -362,55 +266,22 @@ void periodicTask(void *pvParameter) {
     
 }
 
-void WifiTask(void *pvParameter) {
-  // put your setup code here, to run once:
-    Serial.begin(115200);
-    Notifier notifier(LED_PIN);
-
-    kalfy::files::initSPIFFS();
-    nvs_flash_init();
-
-    vTaskDelay(1000 / portTICK_RATE_MS);
-
-    notifier.setHigh();
-    // if (connectWifiManual() ) {
-        
-    //     updateTime();    
-
-    //     vTaskDelay(2000 / portTICK_RATE_MS);
-    //     kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-    //     kalfy::record::printAll(kalfy::record::TEST_FILE);
-
-    //     UDHttp udh;
-    //     root = SD.open("test.pdf", FILE_WRITE);
-
-    //     udh.upload("http://192.168.1.107:80/upload/upload.php", "test.pdf", root.size(), rdataf, progressf, responsef);
-    //     root.close();
-    //     Serial.printf("done uploading\n");
-
-    //     disconnectWifi();
-    //     upload_status = TASK_FINISHED;
-
-    //     vTaskDelay(2000 / portTICK_RATE_MS);
-    // }
-}
-
 void BLETask(void *pvParameter) {
     Notifier notifier(LED_PIN);
 
-    kalfy::files::initSPIFFS();
     nvs_flash_init();
+    initSPIFFS();
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     notifier.setHigh();
 
     ESP_LOGI(TAG, "=== sendData called");
-    kalfy::BLE BLEupdater(kalfy::record::DESTINATION_FILE);
+    kalfy::BLE BLEupdater(DESTINATION_FILE);
     BLEupdater.run();
     ESP_LOGI(TAG, "sendData done");
     notifier.setLow();
 
-    kalfy::files::detachSPIFFS();
+    detachSPIFFS();
     notifier.setLow();
     goToSleep();
 
@@ -421,12 +292,12 @@ void BLETask(void *pvParameter) {
 void testTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
 
-    kalfy::files::initSPIFFS();
     nvs_flash_init();
+    initSPIFFS();
 
     vTaskDelay(1000 / portTICK_RATE_MS);
 
-    kalfy::record::printAll(kalfy::record::TEST_FILE);
+    printAll(TEST_FILE);
 
     notifier.setHigh();
     if (connectWifiManual() ) {
@@ -434,29 +305,29 @@ void testTask(void *pvParameter) {
         updateTime();    
 
         vTaskDelay(2000 / portTICK_RATE_MS);
-        kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-        kalfy::record::printAll(kalfy::record::TEST_FILE);
+        createTestFile(TEST_FILE);
+        printAll(TEST_FILE);
 
         alive_report_item_t report = {{0L,0L}, 0, 0.0};
         getAliveData(report);
         reportAlive(report);
 
-        kalfy::record::uploadMultipartFile(kalfy::record::TEST_FILE);
+        uploadMultipartFile(TEST_FILE);
         disconnectWifi();
 
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
 
-    // kalfy::record::createTestFile(kalfy::record::TEST_FILE);
-    // kalfy::record::printAll(kalfy::record::TEST_FILE);
+    // createTestFile(TEST_FILE);
+    // printAll(TEST_FILE);
 
     // ESP_LOGI(TAG, "=== sendData called");
-    // kalfy::BLE BLEupdater(kalfy::record::TEST_FILE);
+    // kalfy::BLE BLEupdater(TEST_FILE);
     // BLEupdater.run();
     // ESP_LOGI(TAG, "sendData done");
     // notifier.setLow();
 
-    kalfy::files::detachSPIFFS();
+    detachSPIFFS();
     notifier.setLow();
     goToSleep();
 
@@ -489,9 +360,9 @@ void saveRotationTask(void *pvParameter)
 
             char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
-			kalfy::record::saveRevolution(msg.time, kalfy::record::DESTINATION_FILE);	
+			saveRevolution(msg.time, DESTINATION_FILE);	
             if (presure > 1000) {
-			    kalfy::record::savePressure(presure, kalfy::record::DESTINATION_FILE);
+			    savePressure(presure, DESTINATION_FILE);
             }
             lastActivityTime = msg.time;
 
@@ -508,7 +379,7 @@ void reedTask(void *pvParameter) {
     Button WifiButton(WIFI_BUTTON_PIN);
     Button BLEButton(BLE_BUTTON_PIN);
     Notifier notifier(LED_PIN);
-    kalfy::files::initSPIFFS();
+    initSPIFFS();
 
     xTaskCreate(saveRotationTask, "saveRotationTask", 4096, &notifier, 10, NULL);  
     unsigned long printTime = 0;
@@ -531,7 +402,7 @@ void reedTask(void *pvParameter) {
                     break;
                 }
                 case TASK_RUNNING: {
-                    lastActivityTime = kalfy::time::getCurrentTime();
+                    lastActivityTime = getCurrentTime();
                     break;
                 }
                 case TASK_FINISHED: {
@@ -553,8 +424,8 @@ void reedTask(void *pvParameter) {
                 }
             }
                 
-            struct timeval now = kalfy::time::getCurrentTime();
-            struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
+            struct timeval now = getCurrentTime();
+            struct timeval delta = sub(&now, &lastActivityTime);
            
             if (millis() - printTime > 5000  && upload_status != TASK_RUNNING) {
                 printTime = millis();
@@ -565,9 +436,9 @@ void reedTask(void *pvParameter) {
                 printStatus(revolutionsCounter, batteryVoltage, lastActivityTime, delta); 
             }
 
-            if (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
+            if (toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
                 revolutionsCounter.disable();
-                kalfy::files::detachSPIFFS();
+                detachSPIFFS();
                 goToSleep();
             }
         
@@ -617,7 +488,6 @@ void executeStartupMode(void) {
             if (isTimeToSendData()) {
                 xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
             }
-            goToSleep();
             break;
         }
         default: {

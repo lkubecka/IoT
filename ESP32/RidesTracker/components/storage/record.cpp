@@ -286,8 +286,6 @@ namespace kalfy
 				byte clientBuf[bufSize];
 				int bufferPosition = 0;
 
-				char printBuf[bufSize];
-
 				while (file.available()) {
 					// read bufSize byte big chunks from file and write them to client
 					file.read(&clientBuf[bufferPosition], 1);   // read 1 byte

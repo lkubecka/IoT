@@ -78,10 +78,20 @@ namespace kalfy
 
 		unsigned long getTime(void) {
 			long now;
-			struct tm timeinfo = {};
 			std::time(&now);
 
 			return now;
+		}
+
+		void printTimeDifference(uint64_t seconds) {
+			int days = seconds / (24 * 3600);
+			seconds = seconds % (24 * 3600);
+			int hours = seconds / 3600;
+			seconds %= 3600;
+			int min = seconds / 60 ;
+			seconds %= 60;
+			int sec = seconds;
+			ESP_LOGI(TAG, "Time spent from last data posting: %02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
 		}
 	}
 }

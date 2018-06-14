@@ -2,6 +2,7 @@
 #define TIME_H
 
 #include <sys/time.h>
+#include <stdint.h>
 
 namespace kalfy
 {
@@ -15,6 +16,7 @@ namespace kalfy
 		void toMiliSecsStr(struct timeval *a, char * buffer);
 		struct timeval sub(struct timeval *a, struct timeval *b);
 		unsigned long getTime(void);
+		void printTimeDifference(uint64_t seconds);
 	}
 }
 
