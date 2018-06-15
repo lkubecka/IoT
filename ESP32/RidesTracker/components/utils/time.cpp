@@ -83,7 +83,8 @@ namespace kalfy
 			return now;
 		}
 
-		void printTimeDifference(uint64_t seconds) {
+		char* getTimeDifferenceStr(uint64_t seconds) {
+			char buffer[100];
 			int days = seconds / (24 * 3600);
 			seconds = seconds % (24 * 3600);
 			int hours = seconds / 3600;
@@ -91,7 +92,9 @@ namespace kalfy
 			int min = seconds / 60 ;
 			seconds %= 60;
 			int sec = seconds;
-			ESP_LOGI(TAG, "Time spent from last data posting: %02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
+
+			sprintf(buffer,  "%02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
+			return buffer;
 		}
 	}
 }

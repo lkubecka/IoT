@@ -29,7 +29,6 @@
 #include "nvs_flash.h"
 #include "bmp180.h"
 #include "revolutions_counter.hpp"
-#include "Preferences.hpp"
 #include "time.hpp"
 #include "altimeter.h"
 #include "wifi.hpp"
@@ -43,15 +42,12 @@
 #include "time.hpp"
 #include "bluetooth.hpp"
 #include "thingsboardPoster.hpp"
+#include "clock.hpp"
 
 
 const uint64_t uS_TO_S_FACTOR = 1000000;
 const uint64_t mS_TO_S_FACTOR = 1000;
-const uint64_t WAKE_UP_TIME_SEC = (1*60);  // once in 1 minutes
-const uint64_t POST_DATA_PERIOD_SEC = (1*60*60);  // once in 1 hours
-
-#define TIMEZONE_DIFF_GMT_PRAGUE_MINS 60
-#define DAYLIGHT_SAVING_MINS 60
+const uint64_t WAKE_UP_TIME_SEC = (1*60);  // once in 1 minute
 
 #define ADC_CHANNEL ADC1_CHANNEL_0 /*!< ADC1 channel 0 is GPIO36 = VP pin*/
 
@@ -63,17 +59,14 @@ const gpio_num_t LED_PIN = GPIO_NUM_2;
 const int MAX_STACK_SIZE = 8192;
 
 static const char* TAG = "RideTracker";
-static RTC_DATA_ATTR struct timeval sleep_enter_time;
-static struct timeval lastActivityTime = { 0UL, 0UL };
-const uint64_t MAX_IDLE_TIME_US = 60 * 1000 * 1000; // 1 minute IDLE
+//static RTC_DATA_ATTR struct timeval sleep_enter_time;
+
 volatile uint8_t state = 0x00;
-Preferences preferences;
+
 static uint32_t presure = 0;
 static float batteryVoltage = 0;
 
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 3600;
+Clock clock;
 
 enum upload_status_t {
     IDLE,
@@ -95,15 +88,7 @@ using namespace kalfy::files;
 extern "C" {
 #endif
 
-void printLocalTime()
-{
-  struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time");
-    return;
-  }
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-}
+
 
 void goToSleep(void) {
     ESP_LOGI( TAG, "Going to sleep\n");
@@ -135,70 +120,14 @@ void goToSleep(void) {
     rtc_gpio_isolate(GPIO_NUM_12);
 
     ESP_LOGI( TAG, "Entering deep sleep\n");
-    gettimeofday(&sleep_enter_time, NULL);
-
-	preferences.begin("RidezTracker", false);
-	preferences.putBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
-	preferences.end();
+    clock.saveSleepEnterTime();
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     esp_deep_sleep_start();
 }
 
-void retreiveTimeWhenPost(struct timeval *time_when_post) {
-    nvs_flash_init();
-    vTaskDelay(1000 / portTICK_RATE_MS);
-    preferences.begin("RidezTracker", false);
-    preferences.getBytes("time_when_post", time_when_post, sizeof(*time_when_post));
-    preferences.end();
 
-}
-
-bool isTimeToSendData() {
-    struct timeval time_when_post;
-    retreiveTimeWhenPost(&time_when_post);
-    struct timeval now = getCurrentTime();
-    struct timeval delta = sub(&now, &time_when_post);
-    printTimeDifference(delta.tv_sec);
-
-    return (delta.tv_sec > POST_DATA_PERIOD_SEC );
-}
-
-void setLastKnownTime() {
-    nvs_flash_init();
-    vTaskDelay(1000 / portTICK_RATE_MS);
-
-    preferences.begin("RidezTracker", false);
-	unsigned int resetTimes = preferences.getUInt("resetTimes", 0);
-	resetTimes++;
-	ESP_LOGI( TAG, "Number of restart times: %d\n", resetTimes);
-	preferences.putUInt("resetTimes", resetTimes);
-
-    struct timeval sleep_enter_time;
-    preferences.getBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
-    struct timeval now = getCurrentTime();
-    struct timeval delta = sub(&now, &sleep_enter_time);
-    ESP_LOGI(TAG, "Time spent in deep sleep: %ld ms\n", toMiliSecs(&delta));
-    
-    time_t t = time(NULL);
-    printf("Current date/time: %s", ctime(&t));
-	if (now.tv_sec < 10000) {
-		
-		preferences.getBytes("time_when_sleep", &now, sizeof(now));
-		ESP_LOGI( TAG, "Time lost, loading last known time: %ld\n", now.tv_sec);
-		struct timezone tz;
-		tz.tz_minuteswest = TIMEZONE_DIFF_GMT_PRAGUE_MINS;
-		tz.tz_dsttime = DAYLIGHT_SAVING_MINS;
-		settimeofday(&now, &tz);
-		t = time(NULL);
-		ESP_LOGI( TAG, "Current date/time: %s", ctime(&t));
-	}
-
-	preferences.end();
-
-    lastActivityTime = getCurrentTime();
-}
 
 void getBatteryVoltage(float *batteryVoltage) {
     adc1_config_width(ADC_WIDTH_BIT_12);
@@ -214,23 +143,7 @@ void getAliveData(alive_report_item_t & report) {
     report.timestamp = getCurrentTime();
 }
 
-void updateTime(void) {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    printLocalTime();
-    preferences.begin("RidezTracker", false);
-    preferences.putBytes("time_when_sleep", &sleep_enter_time, sizeof(sleep_enter_time));
-    preferences.end();
-}
 
-void storeTimeWhenPost() {
-    nvs_flash_init();
-    vTaskDelay(1000 / portTICK_RATE_MS);
-    struct timeval time_when_post;
-    gettimeofday(&time_when_post, NULL);
-    preferences.begin("RidezTracker", false);
-    preferences.putBytes("time_when_post", &time_when_post, sizeof(time_when_post));
-    preferences.end();
-}
 
 void WifiTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
@@ -346,9 +259,8 @@ void testTask(void *pvParameter) {
 void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
-    time_t t = lastActivityTime.tv_sec;
+    time_t t = clock.getLastActivity.tv_sec;
 	ESP_LOGI( TAG, "Last activity: %s", ctime(&t));
-    ESP_LOGI( TAG,"Time since last activity:  %ld sec|%ld us\n", delta.tv_sec, delta.tv_usec);
 }
 
 void saveRotationTask(void *pvParameter)
@@ -373,7 +285,7 @@ void saveRotationTask(void *pvParameter)
             if (presure > 1000) {
 			    savePressure(presure, DESTINATION_FILE);
             }
-            lastActivityTime = msg.time;
+            clock.setLastActivity(msg.time);
 
             Notifier * notifier = static_cast<Notifier *>(pvParameter);
             notifier->toggle();
@@ -430,9 +342,6 @@ void reedTask(void *pvParameter) {
                     }
                 }
             }
-                
-            struct timeval now = getCurrentTime();
-            struct timeval delta = sub(&now, &lastActivityTime);
            
             if (millis() - printTime > 5000  && upload_status != TASK_RUNNING) {
                 printTime = millis();
@@ -440,10 +349,10 @@ void reedTask(void *pvParameter) {
                 initAltimeter();
                 getAltitude(&presure);
                 getBatteryVoltage(&batteryVoltage);
-                printStatus(revolutionsCounter, batteryVoltage, lastActivityTime, delta); 
+                printStatus(revolutionsCounter, batteryVoltage); 
             }
 
-            if (toMicroSecs(&delta) > MAX_IDLE_TIME_US) {
+            if (clock.isLastActivityTimeout()) {
                 revolutionsCounter.disable();
                 detachSPIFFS();
                 goToSleep();
@@ -466,7 +375,7 @@ void executeStartupMode(void) {
             uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
             if (wakeup_pin_mask != 0) {
                 int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-                printf("--- Wake up from GPIO %d\n", pin);
+                ESP_LOGI( TAG, "--- Wake up from GPIO %d\n", pin);
                 switch (pin) {
                     case WIFI_BUTTON_PIN: {
                         xTaskCreate(&WifiTask, "WifiTask", MAX_STACK_SIZE, NULL, 6, NULL);
@@ -485,18 +394,18 @@ void executeStartupMode(void) {
                     }    
                 }    
             } else {
-                printf("--- Wake up from GPIO\n");
+                ESP_LOGI( TAG, "--- Wake up from GPIO\n");
                 xTaskCreate(&defaultTask, "defaultTask", MAX_STACK_SIZE, NULL, 6, NULL);
             }
             break;
         }
         case ESP_SLEEP_WAKEUP_TIMER: {
-            printf("--- Wake up from timer.\n");
+            ESP_LOGI( TAG, "--- Wake up from timer.\n");
             xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
             break;
         }
         default: {
-            printf("--- Not a deep sleep restart!\n");
+            ESP_LOGI( TAG, "--- Not a deep sleep restart!\n");
             xTaskCreate(&defaultTask, "defaultTask", MAX_STACK_SIZE, NULL, 6, NULL);
         }
     }
