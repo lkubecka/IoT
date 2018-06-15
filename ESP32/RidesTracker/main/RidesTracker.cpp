@@ -232,13 +232,11 @@ void storeTimeWhenPost() {
     preferences.end();
 }
 
-
-void periodicTask(void *pvParameter) {
+void WifiTask(void *pvParameter) {
     Notifier notifier(LED_PIN);
 
     nvs_flash_init();
     initSPIFFS();
-    
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     notifier.setHigh();
@@ -261,9 +259,20 @@ void periodicTask(void *pvParameter) {
 
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
-       
+    notifier.setLow();   
     goToSleep();
     
+}
+
+
+void periodicTask(void *pvParameter) {
+    if (isTimeToSendData()) {
+        WifiTask(NULL);
+    } else {  
+        goToSleep();
+    }
+
+    vTaskDelete(NULL);   
 }
 
 void BLETask(void *pvParameter) {
@@ -391,7 +400,7 @@ void reedTask(void *pvParameter) {
                     notifier.setHigh();
                     revolutionsCounter.disable();
                     upload_status = TASK_RUNNING;
-                    xTaskCreate(&periodicTask, "onDemand", MAX_STACK_SIZE, NULL, 6, NULL);
+                    xTaskCreate(&WifiTask, "onDemand", MAX_STACK_SIZE, NULL, 6, NULL);
                     break;
                 }
                 case BLE_STARTED: {
@@ -419,8 +428,6 @@ void reedTask(void *pvParameter) {
                         
                         upload_status = BLE_STARTED;
                     }
-
-
                 }
             }
                 
@@ -462,7 +469,7 @@ void executeStartupMode(void) {
                 printf("--- Wake up from GPIO %d\n", pin);
                 switch (pin) {
                     case WIFI_BUTTON_PIN: {
-                        xTaskCreate(&periodicTask, "WifiTask", MAX_STACK_SIZE, NULL, 6, NULL);
+                        xTaskCreate(&WifiTask, "WifiTask", MAX_STACK_SIZE, NULL, 6, NULL);
                         break; 
                     }
                     case BLE_BUTTON_PIN: {
@@ -485,9 +492,7 @@ void executeStartupMode(void) {
         }
         case ESP_SLEEP_WAKEUP_TIMER: {
             printf("--- Wake up from timer.\n");
-            if (isTimeToSendData()) {
-                xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
-            }
+            xTaskCreate(&periodicTask, "periodicTask", MAX_STACK_SIZE, NULL, 6, NULL);
             break;
         }
         default: {
