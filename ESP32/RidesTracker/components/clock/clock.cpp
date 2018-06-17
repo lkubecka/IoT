@@ -1,12 +1,16 @@
+
 #include "clock.hpp"
 #include <stdint.h>
+#include <ctime>
 #include <sys/time.h>
+#include <sys/cdefs.h>
+#include <string.h>
 #include "esp_log.h"
 #include "Arduino.h"
 #include "time.hpp"
 #include "nvs_flash.h"
 
-using namespace kalfy::time;
+using namespace kalfy;
 
 constexpr char Clock::TAG[];
 constexpr char Clock::ntpServer[];
@@ -21,7 +25,7 @@ Clock::Clock() {
 //    sleepEnterTime = { 0UL, 0UL };
 }
 
-void Clock::getLastActivity(struct timeval time) {
+void Clock::setLastActivity(struct timeval time) {
     lastActivityTime = time;
 }
 
@@ -38,9 +42,9 @@ void Clock::loadTimeWhenPost(void) {
 }
 
 bool Clock::isLastActivityTimeout(void) {
-    struct timeval now = getCurrentTime();
-    struct timeval delta = sub(&now, &lastActivityTime);
-    return (toMicroSecs(&delta) > MAX_IDLE_TIME_US);
+    struct timeval now = kalfy::time::getCurrentTime();
+    struct timeval delta = kalfy::time::sub(&now, &lastActivityTime);
+    return (kalfy::time::toMicroSecs(&delta) > MAX_IDLE_TIME_US);
 }
 
 void Clock::saveTimeWhenPost(void) {
@@ -54,9 +58,11 @@ void Clock::saveTimeWhenPost(void) {
 
 bool Clock::isTimeToSendData(void) {
     loadTimeWhenPost();
-    struct timeval now = getCurrentTime();
-    struct timeval delta = sub(&now, &timeWhenPost);
-    ESP_LOGI(TAG, "Time since last post: %s\n", getTimeDifferenceStr(delta.tv_sec));
+    struct timeval now = kalfy::time::getCurrentTime();
+    struct timeval delta = kalfy::time::sub(&now, &timeWhenPost);
+    char timeDiffStr[40];
+    kalfy::time::getTimeDifferenceStr(timeDiffStr, delta.tv_sec);
+    ESP_LOGI(TAG, "Time spent from last post: %s\n", timeDiffStr);
 
     return (delta.tv_sec > POST_DATA_PERIOD_SEC );
 }
@@ -85,7 +91,20 @@ void Clock::loadSleepEnterTime(void) {
 }
 
 void Clock::updateActivityTime(void) {
-    lastActivityTime = getCurrentTime();
+    lastActivityTime = kalfy::time::getCurrentTime();
+}
+
+time_t Clock::getSecondsSpentInSleep(void) {
+    loadSleepEnterTime();
+    struct timeval now = kalfy::time::getCurrentTime();
+    struct timeval delta = kalfy::time::sub(&now, &sleepEnterTime);
+    char timeDiffStr[40];
+    kalfy::time::getTimeDifferenceStr(timeDiffStr, delta.tv_sec);
+    printTime(&now); 
+    printTime(&sleepEnterTime);
+    ESP_LOGI(TAG, "Time spent in deep sleep: %s\n", timeDiffStr);
+
+    return delta.tv_sec;
 }
 
 
@@ -94,39 +113,84 @@ void Clock::setLastKnownTime(void) {
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     updateNumberOfResets();
-    loadSleepEnterTime();
-    struct timeval now = getCurrentTime();
-    struct timeval delta = sub(&now, &sleepEnterTime);
-    ESP_LOGI(TAG, "Time spent in deep sleep: %s\n", getTimeDifferenceStr(delta.tv_sec));
-    
-    printLocalTime();
-	if (now.tv_sec < 10000) {
-		ESP_LOGI( TAG, "Time lost, loading last known time: %ld\n", now.tv_sec);
-        setLocalTime(&now);		
-        printLocalTime();
+    printCurrentLocalTime();
+
+	if (getSecondsSpentInSleep()  < 10000) {
+        printTime(&sleepEnterTime);
+        setTime(&sleepEnterTime);		
+        printCurrentLocalTime();
 	}
     updateActivityTime();
 }
 
 void Clock::updateTimeFromNTP(void) {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    printLocalTime();
+    printCurrentLocalTime();
     saveSleepEnterTime();
 }
 
-void Clock::setLocalTime(struct timeval* now) {
-    struct timezone tz;
-    tz.tz_minuteswest = gmtOffset_sec/60;
-    tz.tz_dsttime = daylightOffset_sec/60;
-    settimeofday(now, &tz);
+void Clock::setTimeZone(long offset_sec, int daylight_sec) {
+    char cst[16] = {0};
+    char cdt[16] = "DST";
+    char tz[32] = {0};
+
+    if(offset_sec % 3600){
+        sprintf(cst, "UTC%ld:%02ld:%02ld", offset_sec / 3600, abs((offset_sec % 3600) / 60), abs(offset_sec % 60));
+    } else {
+        sprintf(cst, "UTC%ld", offset_sec / 3600);
+    }
+    if(daylight_sec != 3600){
+        long tz_dst = offset_sec - daylight_sec;
+        if(tz_dst % 3600){
+            sprintf(cdt, "DST%ld:%02ld:%02ld", tz_dst / 3600, abs((tz_dst % 3600) / 60), abs(tz_dst % 60));
+        } else {
+            sprintf(cdt, "DST%ld", tz_dst / 3600);
+        }
+    }
+    sprintf(tz, "%s%s", cst, cdt);
+    ESP_LOGI(TAG, "Timezone: %s", tz);
+    setenv("TZ", tz, 1);
+    tzset();
 }
 
-void Clock::printLocalTime(void)
-{
-    struct tm * timeinfo;
-    if (!getLocalTime(timeinfo)) {
-        ESP_LOGI(TAG, "Failed to obtain time");
-        return;
-    }
-    ESP_LOGI(TAG, "Current local time and date: %s", asctime(timeinfo));
+void Clock::setTime(struct timeval* now) {
+    settimeofday(now, NULL);
+    setTimeZone(gmtOffset_sec, daylightOffset_sec);
+}
+
+void Clock::printTime(struct timeval* timeVal) {
+    struct tm timeinfo;
+    char strftime_buf[64];
+
+    gmtime_r(&timeVal->tv_sec, &timeinfo);
+    
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(TAG, "The current GMT date/time is: %s", strftime_buf);
+}
+
+void Clock::printCurrentLocalTime(void) {
+    struct tm timeinfo;
+    char strftime_buf[64];
+    time_t now;
+    
+    ::time(&now);
+    setTimeZone(gmtOffset_sec, daylightOffset_sec);
+    localtime_r(&now, &timeinfo);
+    
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(TAG, "The current local date/time is: %s", strftime_buf);
+    // struct tm timeinfo;
+    // char strftime_buf[64];
+
+    // if (!getLocalTime(&timeinfo, 1000)) {
+    //     ESP_LOGI(TAG, "Failed to obtain time");
+    //     return;
+    // }
+    
+    // strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    // ESP_LOGI(TAG, "The current GMT date/time is: %s", strftime_buf);
+
+    // setTimeZone(gmtOffset_sec, daylightOffset_sec);
+    // strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    // ESP_LOGI(TAG, "The current date/time in Prague is: %s", strftime_buf);
 }

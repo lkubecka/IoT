@@ -10,13 +10,14 @@ namespace kalfy
 	{
 		long durationBeforeNow(struct timeval *past);
 		struct timeval getCurrentTime();
+		struct timeval getCurrenLocalTime(int tz_minuteswest, int tz_dsttime);
 		void setTime(long secondsSinceEpoch);
 		unsigned long toMicroSecs(struct timeval *a);
 		unsigned long toMiliSecs(struct timeval *a);
 		void toMiliSecsStr(struct timeval *a, char * buffer);
 		struct timeval sub(struct timeval *a, struct timeval *b);
 		unsigned long getTime(void);
-		char* getTimeDifferenceStr(uint64_t seconds);
+		void getTimeDifferenceStr(char *str, uint64_t seconds);
 	}
 }
 

@@ -44,6 +44,11 @@
 #include "thingsboardPoster.hpp"
 #include "clock.hpp"
 
+using namespace kalfy::time;
+using namespace kalfy::record;
+using namespace kalfy::files;
+using namespace kalfy;
+
 
 const uint64_t uS_TO_S_FACTOR = 1000000;
 const uint64_t mS_TO_S_FACTOR = 1000;
@@ -65,8 +70,7 @@ volatile uint8_t state = 0x00;
 
 static uint32_t presure = 0;
 static float batteryVoltage = 0;
-
-Clock clock;
+Clock rtcClock;
 
 enum upload_status_t {
     IDLE,
@@ -80,9 +84,6 @@ upload_status = IDLE;
 
 SemaphoreHandle_t xSemaphore = NULL;
 
-using namespace kalfy::time;
-using namespace kalfy::record;
-using namespace kalfy::files;
 
 #ifdef __cplusplus
 extern "C" {
@@ -120,7 +121,7 @@ void goToSleep(void) {
     rtc_gpio_isolate(GPIO_NUM_12);
 
     ESP_LOGI( TAG, "Entering deep sleep\n");
-    clock.saveSleepEnterTime();
+    rtcClock.saveSleepEnterTime();
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
@@ -155,7 +156,7 @@ void WifiTask(void *pvParameter) {
     notifier.setHigh();
     if (connectWifiManual() ) {
         
-        updateTime();    
+        rtcClock.updateTimeFromNTP();    
 
         vTaskDelay(2000 / portTICK_RATE_MS);
 
@@ -166,7 +167,7 @@ void WifiTask(void *pvParameter) {
         reportAlive(report);
 
         uploadMultipartFile(DESTINATION_FILE);
-        storeTimeWhenPost();
+        rtcClock.saveTimeWhenPost();
 
         disconnectWifi();
 
@@ -179,7 +180,7 @@ void WifiTask(void *pvParameter) {
 
 
 void periodicTask(void *pvParameter) {
-    if (isTimeToSendData()) {
+    if (rtcClock.isTimeToSendData()) {
         WifiTask(NULL);
     } else {  
         goToSleep();
@@ -224,7 +225,7 @@ void testTask(void *pvParameter) {
     notifier.setHigh();
     if (connectWifiManual() ) {
         
-        updateTime();    
+        rtcClock.updateTimeFromNTP();    
 
         vTaskDelay(2000 / portTICK_RATE_MS);
         createTestFile(TEST_FILE);
@@ -256,11 +257,13 @@ void testTask(void *pvParameter) {
     vTaskDelete(NULL);  
 }
 
-void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage, const struct timeval & lastActivityTime, const struct timeval & delta) {
+void printStatus(const RevolutionsCounter & revolutionsCounter, const float & batteryVoltage) {
     ESP_LOGI( TAG, "Number of revolutions %d\n", (int)(revolutionsCounter.getNumberOfRevolutions()));
     ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
-    time_t t = clock.getLastActivity.tv_sec;
-	ESP_LOGI( TAG, "Last activity: %s", ctime(&t));
+    struct timeval t = rtcClock.getLastActivity();
+	ESP_LOGI( TAG, "Last activity: %s", ctime(&t.tv_sec));
+    rtcClock.printTime(&t);
+    rtcClock.printCurrentLocalTime();
 }
 
 void saveRotationTask(void *pvParameter)
@@ -282,10 +285,10 @@ void saveRotationTask(void *pvParameter)
             char buffer[32];
 			snprintf(buffer, sizeof(buffer), "t%ld|%ld", msg.time.tv_sec, msg.time.tv_usec);
 			saveRevolution(msg.time, DESTINATION_FILE);	
-            if (presure > 1000) {
+            if (presure > 80000) {
 			    savePressure(presure, DESTINATION_FILE);
             }
-            clock.setLastActivity(msg.time);
+            rtcClock.setLastActivity(msg.time);
 
             Notifier * notifier = static_cast<Notifier *>(pvParameter);
             notifier->toggle();
@@ -323,7 +326,7 @@ void reedTask(void *pvParameter) {
                     break;
                 }
                 case TASK_RUNNING: {
-                    lastActivityTime = getCurrentTime();
+                    rtcClock.updateActivityTime();
                     break;
                 }
                 case TASK_FINISHED: {
@@ -352,7 +355,7 @@ void reedTask(void *pvParameter) {
                 printStatus(revolutionsCounter, batteryVoltage); 
             }
 
-            if (clock.isLastActivityTimeout()) {
+            if (rtcClock.isLastActivityTimeout()) {
                 revolutionsCounter.disable();
                 detachSPIFFS();
                 goToSleep();
@@ -416,7 +419,7 @@ void app_main()
     Serial.begin(115200);
 
     initArduino();
-    setLastKnownTime();
+    rtcClock.setLastKnownTime();
     executeStartupMode(); 
     vTaskDelete(NULL);   
 }

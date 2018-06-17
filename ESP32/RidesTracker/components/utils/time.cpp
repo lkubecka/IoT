@@ -57,8 +57,15 @@ namespace kalfy
 			ESP_LOGI(TAG, "Timestamp ms %d", milli);
 		}
 
-
-
+		struct timeval getCurrenLocalTime(int tz_minuteswest, int tz_dsttime)
+		{
+			struct timeval now;
+			struct timezone timezone;
+			timezone.tz_dsttime = tz_minuteswest;
+			timezone.tz_minuteswest = tz_dsttime;
+			gettimeofday(&now, &timezone);
+			return now;
+		}
 		struct timeval getCurrentTime()
 		{
 			struct timeval now;
@@ -83,8 +90,7 @@ namespace kalfy
 			return now;
 		}
 
-		char* getTimeDifferenceStr(uint64_t seconds) {
-			char buffer[100];
+		void getTimeDifferenceStr(char *str, uint64_t seconds) {
 			int days = seconds / (24 * 3600);
 			seconds = seconds % (24 * 3600);
 			int hours = seconds / 3600;
@@ -93,8 +99,7 @@ namespace kalfy
 			seconds %= 60;
 			int sec = seconds;
 
-			sprintf(buffer,  "%02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
-			return buffer;
+			sprintf(str,  "%02d days, %02d:%02d:%02d [HH:MM:SS]", days, hours, min, sec);
 		}
 	}
 }
