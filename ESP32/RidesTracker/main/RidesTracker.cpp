@@ -61,6 +61,11 @@ const gpio_num_t BLE_BUTTON_PIN = GPIO_NUM_26;
 const gpio_num_t REED_PIN = GPIO_NUM_13;
 const gpio_num_t LED_PIN = GPIO_NUM_2;
 
+#define SERIAL2_RXPIN 35
+#define SERIAL2_TXPIN 23
+HardwareSerial Serial2(2); 
+
+
 const int MAX_STACK_SIZE = 8192;
 
 static const char* TAG = "RideTracker";
@@ -264,6 +269,11 @@ void printStatus(const RevolutionsCounter & revolutionsCounter, const float & ba
 	ESP_LOGI( TAG, "Last activity: %s", ctime(&t.tv_sec));
     rtcClock.printTime(&t);
     rtcClock.printCurrentLocalTime();
+
+    Serial2.printf("Number of revolutions %d\n\r", (int)(revolutionsCounter.getNumberOfRevolutions()));
+    Serial2.printf("Battery voltage %fV\n\r", batteryVoltage);
+    Serial2.printf("Last activity: %s\n\r", ctime(&t.tv_sec));
+    
 }
 
 void saveRotationTask(void *pvParameter)
@@ -344,7 +354,7 @@ void reedTask(void *pvParameter) {
                         upload_status = BLE_STARTED;
                     }
                 }
-            }
+            } 
            
             if (millis() - printTime > 5000  && upload_status != TASK_RUNNING) {
                 printTime = millis();
@@ -417,7 +427,17 @@ void executeStartupMode(void) {
 void app_main()
 {
     Serial.begin(115200);
+    Serial2.begin(115200, SERIAL_8N1, SERIAL2_RXPIN, SERIAL2_TXPIN);
+    Serial2.setDebugOutput(true);
 
+    // int cnt = 0;
+    // while (true) {
+    //     Serial.printf("Hello #%d\n", cnt);
+    //     Serial2.printf("Hello #%d\n\r", cnt);
+    //     ESP_LOGI( TAG, "--- log test\n");
+    //     cnt++;
+    // }
+ 
     initArduino();
     rtcClock.setLastKnownTime();
     executeStartupMode(); 

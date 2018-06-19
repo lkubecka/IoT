@@ -10,22 +10,28 @@ esp_err_t res;
 static const char *TAG = "Altimeter";
 
 void initAltimeter(void) {
-    while (i2cdev_init() != ESP_OK)
+    int tmout = 10;
+    while (i2cdev_init() != ESP_OK || tmout > 0)
     {
         printf("Could not init I2Cdev library\n");
         vTaskDelay(250 / portTICK_PERIOD_MS);
+        tmout--;
     }
 
-    while (bmp180_init_desc(&dev, I2C_NUM_1, SDA_GPIO, SCL_GPIO) != ESP_OK)
+    tmout = 10;
+    while (bmp180_init_desc(&dev, I2C_NUM_1, SDA_GPIO, SCL_GPIO) != ESP_OK || tmout > 0)
     {
         printf("Could not init device descriptor\n");
         vTaskDelay(250 / portTICK_PERIOD_MS);
+        tmout--;
     }
 
-    while ((res = bmp180_init(&dev)) != ESP_OK)
+    tmout = 10;
+    while ((res = bmp180_init(&dev)) != ESP_OK || tmout > 0)
     {
         printf("Could not init BMP180, err: %d\n", res);
         vTaskDelay(250 / portTICK_PERIOD_MS);
+        tmout--;
     }
 }
 
