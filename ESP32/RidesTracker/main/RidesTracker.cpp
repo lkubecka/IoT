@@ -69,7 +69,6 @@ HardwareSerial Serial2(2);
 const int MAX_STACK_SIZE = 8192;
 
 static const char* TAG = "RideTracker";
-//static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
 volatile uint8_t state = 0x00;
 
@@ -202,11 +201,12 @@ void BLETask(void *pvParameter) {
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     notifier.setHigh();
-
+#if 0
     ESP_LOGI(TAG, "=== sendData called");
     kalfy::BLE BLEupdater(DESTINATION_FILE);
     BLEupdater.run();
     ESP_LOGI(TAG, "sendData done");
+ #endif   
     notifier.setLow();
 
     detachSPIFFS();
@@ -267,7 +267,7 @@ void printStatus(const RevolutionsCounter & revolutionsCounter, const float & ba
     ESP_LOGI( TAG, "Battery voltage %fV\n", batteryVoltage);
     struct timeval t = rtcClock.getLastActivity();
 	ESP_LOGI( TAG, "Last activity: %s", ctime(&t.tv_sec));
-    rtcClock.printTime(&t);
+    rtcClock.printTime(&t, "Last activity time: %s");
     rtcClock.printCurrentLocalTime();
 
     Serial2.printf("Number of revolutions %d\n\r", (int)(revolutionsCounter.getNumberOfRevolutions()));
@@ -314,9 +314,11 @@ void reedTask(void *pvParameter) {
     Button BLEButton(BLE_BUTTON_PIN);
     Notifier notifier(LED_PIN);
     initSPIFFS();
+    initAltimeter();
+    getAltitude(&presure);
 
     xTaskCreate(saveRotationTask, "saveRotationTask", 4096, &notifier, 10, NULL);  
-    unsigned long printTime = 0;
+    unsigned long timeWhenPrint = 0;
 
     while (1) {
 
@@ -356,10 +358,9 @@ void reedTask(void *pvParameter) {
                 }
             } 
            
-            if (millis() - printTime > 5000  && upload_status != TASK_RUNNING) {
-                printTime = millis();
+            if (millis() - timeWhenPrint > 5000  && upload_status != TASK_RUNNING) {
+                timeWhenPrint = millis();
 
-                initAltimeter();
                 getAltitude(&presure);
                 getBatteryVoltage(&batteryVoltage);
                 printStatus(revolutionsCounter, batteryVoltage); 
@@ -439,6 +440,8 @@ void app_main()
     // }
  
     initArduino();
+    rtcClock.loadTimeWhenPost();
+    rtcClock.loadSleepEnterTime();
     rtcClock.setLastKnownTime();
     executeStartupMode(); 
     vTaskDelete(NULL);   

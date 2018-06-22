@@ -93,12 +93,12 @@ bool connectWifiManual(void) {
 
 	for (int connectionID = 0; connectionID < connections.size(); connectionID++) {
         Configuration & connection = connections[connectionID];
-        ESP_LOGI(TAG, "\n\nSetting SSID: %s and password: %s", connection.getSSID(), connection.getPassword());
+        ESP_LOGI(TAG, "\n\r\n\rSetting SSID: %s and password: %s", connection.getSSID(), connection.getPassword());
         
 		WiFi.disconnect(true);        // Clear Wifi Credentials
         WiFi.persistent(false);       // Avoid to store Wifi configuration in Flash
         WiFi.mode(WIFI_OFF);
-        delay(2000);
+        delay(500);
         WiFi.mode(WIFI_STA);          // Ensure WiFi mode is Station 
         WiFi.enableSTA(true);
     
@@ -107,14 +107,11 @@ bool connectWifiManual(void) {
             if (WiFi.status() == WL_CONNECTED) {
                 ESP_LOGI(TAG, "WiFi connected, IP address:  %s", WiFi.localIP().toString().c_str());
                 return true;
-            }
-            else {
+            } else {
                 ESP_LOGI(TAG, "WiFi connection timeout: %d", tmout);
-                
             }
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 
 

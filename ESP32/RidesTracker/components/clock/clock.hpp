@@ -31,7 +31,7 @@ namespace kalfy {
             void loadSleepEnterTime(void);
             void setLastKnownTime(void);
             void updateTimeFromNTP(void);
-            void printTime(struct timeval* timeVal);
+            void printTime(struct timeval* timeVal, const char * strFormat = "The GMT date/time is: %s" );
             void printCurrentLocalTime(void);
             void updateActivityTime(void);
             struct timeval getLastActivity(void);

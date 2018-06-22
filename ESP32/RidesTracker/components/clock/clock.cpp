@@ -19,10 +19,10 @@ constexpr int   Clock::daylightOffset_sec;
 constexpr uint64_t Clock::MAX_IDLE_TIME_US;
 constexpr uint64_t Clock::POST_DATA_PERIOD_SEC;
 
+static RTC_DATA_ATTR struct timeval RTCTime;
+
 Clock::Clock() {
-//    lastActivityTime = { 0UL, 0UL };
-//    timeWhenPost = { 0UL, 0UL };
-//    sleepEnterTime = { 0UL, 0UL };
+    lastActivityTime = { 0UL, 0UL };
 }
 
 void Clock::setLastActivity(struct timeval time) {
@@ -39,6 +39,7 @@ void Clock::loadTimeWhenPost(void) {
     preferences.begin("RidezTracker", false);
     preferences.getBytes("timeWhenPost", &timeWhenPost, sizeof(timeWhenPost));
     preferences.end();
+    printTime(&timeWhenPost, "Loaded timeWhenPost: %s");
 }
 
 bool Clock::isLastActivityTimeout(void) {
@@ -54,15 +55,19 @@ void Clock::saveTimeWhenPost(void) {
     preferences.begin("RidezTracker", false);
     preferences.putBytes("timeWhenPost", &timeWhenPost, sizeof(timeWhenPost));
     preferences.end();
+    printTime(&timeWhenPost, "Saved timeWhenPost: %s");
 }
 
 bool Clock::isTimeToSendData(void) {
     loadTimeWhenPost();
     struct timeval now = kalfy::time::getCurrentTime();
+    printTime(&now, "Current time %s");
     struct timeval delta = kalfy::time::sub(&now, &timeWhenPost);
     char timeDiffStr[40];
     kalfy::time::getTimeDifferenceStr(timeDiffStr, delta.tv_sec);
-    ESP_LOGI(TAG, "Time spent from last post: %s\n", timeDiffStr);
+    ESP_LOGI(TAG, "Time spent from last post: %s", timeDiffStr);
+    ESP_LOGI(TAG, "Time spent from last post: %ld s", delta.tv_sec);
+    ESP_LOGI(TAG, "Time spent from last post direct: %ld s", now.tv_sec - timeWhenPost.tv_sec);
 
     return (delta.tv_sec > POST_DATA_PERIOD_SEC );
 }
@@ -76,9 +81,11 @@ void Clock::updateNumberOfResets(void) {
 
 void Clock::saveSleepEnterTime(void) {
     gettimeofday(&sleepEnterTime, NULL);
+    RTCTime = sleepEnterTime;
 	preferences.begin("RidezTracker", false);
 	preferences.putBytes("sleepEnterTime", &sleepEnterTime, sizeof(sleepEnterTime));
 	preferences.end();
+    printTime(&sleepEnterTime, "Saved sleepEnterTime: %s");
 }
 
 
@@ -88,6 +95,8 @@ void Clock::loadSleepEnterTime(void) {
     preferences.begin("RidezTracker", false);
     preferences.getBytes("sleepEnterTime", &sleepEnterTime, sizeof(sleepEnterTime));
     preferences.end();
+    printTime(&sleepEnterTime, "Loaded sleepEnterTime: %s");
+    printTime(&RTCTime, "RTC time: %s");
 }
 
 void Clock::updateActivityTime(void) {
@@ -100,8 +109,8 @@ time_t Clock::getSecondsSpentInSleep(void) {
     struct timeval delta = kalfy::time::sub(&now, &sleepEnterTime);
     char timeDiffStr[40];
     kalfy::time::getTimeDifferenceStr(timeDiffStr, delta.tv_sec);
-    printTime(&now); 
-    printTime(&sleepEnterTime);
+    printTime(&now, "Current time: %s");
+    printTime(&sleepEnterTime, "sleepEnterTime: %s");
     ESP_LOGI(TAG, "Time spent in deep sleep: %s\n", timeDiffStr);
 
     return delta.tv_sec;
@@ -113,11 +122,14 @@ void Clock::setLastKnownTime(void) {
     vTaskDelay(1000 / portTICK_RATE_MS);
 
     updateNumberOfResets();
-    printCurrentLocalTime();
+    
+	struct timeval now = kalfy::time::getCurrentTime();
+    printTime(&now, "Current GMT time: %s");
 
-	if (getSecondsSpentInSleep()  < 10000) {
-        printTime(&sleepEnterTime);
-        setTime(&sleepEnterTime);		
+	if (now.tv_sec < 10000) {
+        ESP_LOGI(TAG, "Current time lost, loading sleepEnterTime");
+        setTime(&sleepEnterTime);	
+        printTime(&now, "Current GMT time: %s");	
         printCurrentLocalTime();
 	}
     updateActivityTime();
@@ -155,17 +167,19 @@ void Clock::setTimeZone(long offset_sec, int daylight_sec) {
 
 void Clock::setTime(struct timeval* now) {
     settimeofday(now, NULL);
-    setTimeZone(gmtOffset_sec, daylightOffset_sec);
+    setTimeZone(-gmtOffset_sec, daylightOffset_sec);
 }
 
-void Clock::printTime(struct timeval* timeVal) {
+void Clock::printTime(struct timeval* timeVal, const char * strFormat ) {
     struct tm timeinfo;
     char strftime_buf[64];
+    char time_buf[100];
 
     gmtime_r(&timeVal->tv_sec, &timeinfo);
     
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "The current GMT date/time is: %s", strftime_buf);
+    sprintf(time_buf, strFormat, strftime_buf);
+    ESP_LOGI(TAG, "%s", time_buf);
 }
 
 void Clock::printCurrentLocalTime(void) {
@@ -174,7 +188,7 @@ void Clock::printCurrentLocalTime(void) {
     time_t now;
     
     ::time(&now);
-    setTimeZone(gmtOffset_sec, daylightOffset_sec);
+    setTimeZone(-gmtOffset_sec, daylightOffset_sec);
     localtime_r(&now, &timeinfo);
     
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
